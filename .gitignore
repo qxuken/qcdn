@@ -1,0 +1,13 @@
+# Rust artifacts
+/target
+/Cargo.lock
+
+# Service and development artifacts
+/data/*
+/data/*.db
+
+# Local configuration
+.env
+
+# To keep empty folders
+!/**/*/.keep
