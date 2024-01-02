@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package qcdn.general;
+
+service QCDNGeneralService {	
+	rpc Ping(google.protobuf.Empty) returns (PingResponse);
+	rpc Version(google.protobuf.Empty) returns (VersionResponse);
+}
+
+message PingResponse {
+	uint64 timestamp = 1;
+}
+
+message VersionResponse {
+	string version = 1;
+}

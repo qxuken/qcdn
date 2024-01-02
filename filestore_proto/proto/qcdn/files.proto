@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package qcdn.files;
+
+service QCDNFilesService {
+	rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
+	rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty); 
+	rpc GetClosestUrl(GetClosestUrlRequest) returns (GetClosestUrlResponse);
+}
+
+message UploadFileRequest {
+	oneof request {
+		UploadFileMeta meta = 1;
+		bytes chunk = 2;
+	}
+}
+
+message UploadFileMeta {
+	string name = 1;
+	uint32 size = 2;
+}
+
+message UploadFileResponse {
+	string id = 1;
+}
+
+message DeleteFileRequest {
+	string id = 1;
+}
+
+message GetClosestUrlRequest {
+	string id = 1;
+	string ip_addr_v4 = 2;
+}
+
+message GetClosestUrlResponse {
+	string url = 1;
+}

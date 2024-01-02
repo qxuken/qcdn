@@ -1,6 +1,6 @@
-# QXuken's datastore
+# QXuken's CDN
 
-Application for datasets storage, management and open apis for them
+Application for distributet content delivery
 
 ## Setup
 

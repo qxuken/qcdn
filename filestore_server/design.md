@@ -16,8 +16,6 @@ A storage solution with geo replication.
 
 - GET `<base>/f/<file>` - download file
 - GET `<base>/f/<file>.meta` - download file meta
-- DELETE `<base>/f/<file>` - delete file (master_only)(auth)
-- PUT `<base>/upload` - upload file (multipart)(master_only)(auth)
 
 ## gRPC
 
@@ -25,11 +23,22 @@ url - `<base>`/grpc (master_only)
 
 ### calls
 
+#### general
+
 - `ping()` - ping
 - `version()` - check version
+
+#### files
+
+- `upload(file_name, size, stream bytes)` - upload file (stream)
+- `delete(id)` - delete file
+- `get_closest_url(id, ip_addr)` - get closest node url
+
+#### nodes communication
+
 - `connect(ip, url)` - connect to pool
 - `sync(file)` - request to download file
-- `closest(ip_addr)` - get closest node url
+- `updated_since(timestamp)` - updated files since
 
 ## DB
 
@@ -40,6 +49,7 @@ url - `<base>`/grpc (master_only)
 - `name`
 - `size`
 - `state` (ready, uploading, downloading, create)
+- `file_type`
 - `meta` (json)
 - `created_at`
 
