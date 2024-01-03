@@ -1,6 +1,6 @@
 # QXuken's CDN
 
-Application for distributet content delivery
+Application for distributed content delivery
 
 ## Setup
 
@@ -10,7 +10,9 @@ Application for distributet content delivery
     cp .env.development .env
     ```
 
-2. Install `sqlx-cli`
+2. Install `protoc` compiler using [tonic instructions](https://github.com/hyperium/tonic?tab=readme-ov-file#dependencies)
+
+3. Install `sqlx-cli`
 
     ```bash
     cargo install sqlx-cli
@@ -27,26 +29,11 @@ Application for distributet content delivery
   ```
 
   > Add `-r` flag for a reversible migration
-  > Add `--source ./filestore_server/migrations` arg to create migrations in a different directory
-
-  Example:
-
-  ```bash
-  sqlx migrate add --source ./filestore_server/migrations -r add_users_table
-  ```
 
 - **Check** migration
 
   ```bash
   sqlx migrate info
-  ```
-
-  > Add `--source ./filestore_server/migrations --database-url=sqlite://data/filestore.db` arg to check migrations in a different directory
-
-  Example:
-
-  ```bash
-  sqlx migrate info --source ./filestore_server/migrations --database-url=sqlite://data/filestore.db
   ```
 
 - **Run** migrations
@@ -55,20 +42,9 @@ Application for distributet content delivery
   sqlx migrate run
   ```
 
-  Example:
-
-  ```bash
-  sqlx migrate run --source ./filestore_server/migrations --database-url=sqlite://data/filestore.db
-  ```
-
 - **Revert** migrations
 
   ```bash
   sqlx migrate revert
   ```
-
-  Example:
-
-  ```bash
-  sqlx migrate revert --source ./filestore_server/migrations --database-url=sqlite://data/filestore.db
-  ```
+  

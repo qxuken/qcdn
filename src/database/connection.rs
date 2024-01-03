@@ -1,5 +1,4 @@
 use axum::{
-    async_trait,
     extract::{FromRef, FromRequestParts},
     http::{request::Parts, StatusCode},
 };
@@ -17,7 +16,7 @@ impl FromRef<AppState> for SqlitePool {
     }
 }
 
-#[async_trait]
+#[axum::async_trait]
 impl FromRequestParts<AppState> for DatabaseConnection
 where
     SqlitePool: FromRef<AppState>,

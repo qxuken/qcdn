@@ -12,5 +12,6 @@ CREATE TABLE dir_file(
   state      INTEGER          NOT NULL,
   file_type  INTEGER          NOT NULL,
   meta          TEXT          NOT NULL,
-  created_at INTEGER          NOT NULL
+  created_at INTEGER          NOT NULL,
+  FOREIGN KEY(dir_id) REFERENCES dir(id)
 );

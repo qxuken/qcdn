@@ -1,30 +1,33 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{arg, command, value_parser, Parser};
 use tracing_subscriber::filter;
 
 #[derive(Debug, Parser, Clone)]
 #[command(author, version, about, long_about = None)]
-pub struct Config {
+pub struct CliConfig {
     #[arg(
+        short,
         long,
-        help = "path to sqlite db",
+        help = "Path to sqlite db",
         env = "FS_DB_PATH",
         default_value = "data/filestore.db"
     )]
     pub db_path: PathBuf,
 
     #[arg(
+        short,
         long,
-        help = "path to storage dir",
+        help = "Path to storage dir",
         env = "FS_STORAGE_DIR",
         default_value = "data/storage"
     )]
     pub storage_dir: PathBuf,
 
     #[arg(
+        short,
         long,
-        help = "base url",
+        help = "Url node will serve on",
         env = "FS_BASE_URL",
         default_value = "http://localhost:8080"
     )]
@@ -32,7 +35,7 @@ pub struct Config {
 
     #[arg(
         long,
-        help = "local interface address",
+        help = "Local interface address",
         env = "FS_HOST",
         default_value = "127.0.0.1"
     )]
@@ -41,12 +44,22 @@ pub struct Config {
     #[arg(
         short,
         long,
-        help = "http port",
-        env = "FS_HTTP_PORT",
-        default_value = "8080"
+        help = "TCP port",
+        env = "FS_PORT",
+        default_value = "8080",
+        value_parser = value_parser!(u16).range(1..)
     )]
     pub port: u16,
 
-    #[arg(long, help = "log level", env = "FS_LOG_LEVEL", default_value = "info")]
+    #[arg(long, help = "Log level", env = "FS_LOG_LEVEL", default_value = "info")]
     pub log_level: filter::LevelFilter,
+
+    #[arg(short, long, help = "Url to main server", env = "FS_MAIN_SERVER_URL")]
+    pub main_server_url: Option<String>,
+}
+
+impl CliConfig {
+    pub fn init() -> CliConfig {
+        CliConfig::parse()
+    }
 }

@@ -18,9 +18,9 @@ pub struct Storage(Arc<PathBuf>);
 
 impl Storage {
     pub async fn from_path(value: &Path) -> Result<Self, anyhow::Error> {
-        tracing::trace!("Checking if {:?} exists", value);
+        tracing::debug!("Checking if {:?} exists", value);
         if !value.exists() {
-            tracing::trace!("Creating {:?}", value);
+            tracing::debug!("Creating {:?}", value);
             fs::create_dir(&value)
                 .await
                 .map_err(|e| anyhow::anyhow!("{:?}: {}", value, e))?;
@@ -30,7 +30,7 @@ impl Storage {
         }
 
         let storage = Self(Arc::new(value.to_path_buf()));
-        tracing::trace!("{:?} created", storage);
+        tracing::debug!("{:?} created", storage);
         Ok(storage)
     }
 }

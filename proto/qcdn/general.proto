@@ -1,16 +1,17 @@
 syntax = "proto3";
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 package qcdn.general;
 
-service QCDNGeneralService {	
-	rpc Ping(google.protobuf.Empty) returns (PingResponse);
+service QcdnGeneral {	
+	rpc Ping(PingMessage) returns (PingMessage);
 	rpc Version(google.protobuf.Empty) returns (VersionResponse);
 }
 
-message PingResponse {
-	uint64 timestamp = 1;
+message PingMessage {
+	google.protobuf.Timestamp timestamp = 1;
 }
 
 message VersionResponse {
