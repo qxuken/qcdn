@@ -17,6 +17,20 @@ use crate::AppState;
 pub struct Storage(Arc<PathBuf>);
 
 impl Storage {
+    pub async fn create_file(&self, dir: &str, filename: &str) -> Result<fs::File, anyhow::Error> {
+        let dir_path = self.0.clone().join(dir);
+        if fs::read_dir(&dir_path).await.is_err() {
+            fs::create_dir(&dir_path).await?;
+        }
+        Ok(fs::File::create(dir_path.join(filename)).await?)
+    }
+    pub async fn remove_file(&self, dir: &str, filename: &str) -> Result<(), anyhow::Error> {
+        let dir_path = self.0.clone().join(dir);
+        Ok(fs::remove_file(dir_path.join(filename)).await?)
+    }
+}
+
+impl Storage {
     pub async fn from_path(value: &Path) -> Result<Self, anyhow::Error> {
         tracing::debug!("Checking if {:?} exists", value);
         if !value.exists() {

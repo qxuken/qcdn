@@ -13,19 +13,18 @@ service QcdnFiles {
 message UploadFileRequest {
 	oneof request {
 		UploadFileMeta meta = 1;
-		bytes chunk = 2;
+		UploadFilePart part = 2;
 	}
 }
 
 message UploadFileMeta {
 	string name = 1;
 	string dir = 2;
-	uint32 size = 3;
+	uint64 size = 3;
 }
 
 message UploadFilePart {
-	uint32 offset = 1;
-	bytes chunk = 2;
+	bytes bytes = 1;
 }
 
 message UploadFileResponse {
