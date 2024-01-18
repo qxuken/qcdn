@@ -4,10 +4,12 @@ use anyhow::Result;
 use sqlx::{migrate::Migrator, sqlite::SqliteConnectOptions, SqlitePool};
 
 pub use connection::{DatabaseConnection, DatabasePoolConnection};
+pub use files::Dir;
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
 mod connection;
+pub mod files;
 
 #[derive(Debug, Clone)]
 pub struct Database(pub SqlitePool);
@@ -44,5 +46,10 @@ impl Database {
 impl Database {
     pub fn inner(&self) -> SqlitePool {
         self.0.clone()
+    }
+
+    pub async fn connect(&self) -> Result<DatabasePoolConnection> {
+        let connection = self.0.acquire().await?;
+        Ok(connection)
     }
 }

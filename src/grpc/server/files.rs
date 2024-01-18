@@ -3,6 +3,7 @@ use tokio_stream::StreamExt;
 use tonic::{Request, Response, Status, Streaming};
 
 use crate::{
+    database::Dir,
     grpc::{
         qcdn_files_server::QcdnFiles, upload_file_request, DeleteFileRequest, GetClosestUrlRequest,
         GetClosestUrlResponse, UploadFileMeta, UploadFileRequest, UploadFileResponse,
@@ -42,11 +43,21 @@ impl QcdnFiles for FilesService {
 
         let mut bytes = 0u64;
         let mut data = None;
+        let mut connection = self
+            .app_state
+            .db
+            .connect()
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
 
         while let Some(result) = in_stream.next().await {
             match result.map(|r| r.request).ok().flatten() {
                 Some(req) => match req {
                     upload_file_request::Request::Meta(meta) => {
+                        let dir = Dir::find_or_create(&mut connection, &meta.dir)
+                            .await
+                            .map_err(|e| Status::internal(e.to_string()))?;
+
                         let file = self
                             .app_state
                             .storage
@@ -59,6 +70,7 @@ impl QcdnFiles for FilesService {
                         }
 
                         tracing::info!("Starting upload {meta:?}");
+                        tracing::info!("Upload directory {dir:?}");
                         data = Some((meta, file));
                     }
                     upload_file_request::Request::Part(part) => {
