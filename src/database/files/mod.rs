@@ -6,10 +6,6 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
-pub use dir::Dir;
-
-mod dir;
-
 #[derive(Debug, sqlx::Type, Serialize, Deserialize)]
 pub enum FileType {
     Files,
@@ -24,13 +20,13 @@ pub enum FileState {
     Ready,
     Uploading,
     Downloading,
-    Create,
+    Created,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct File {
     pub id: Uuid,
-    pub dir_id: Uuid,
+    pub directory_path: String,
     pub name: String,
     pub file_type: FileType,
     pub version: String,
@@ -40,6 +36,90 @@ pub struct File {
     pub created_at: DateTime<Utc>,
 }
 
+pub struct CreateFile {
+    pub directory_path: String,
+    pub name: String,
+    pub file_type: FileType,
+    pub version: String,
+    pub size: u64,
+    pub state: FileState,
+    pub meta: Value,
+}
+
+pub struct FilePath {
+    pub directory_path: String,
+    pub name: String,
+    pub file_type: FileType,
+    pub version: Option<String>,
+}
+
+impl File {
+    pub async fn find_by_id(connection: &mut SqliteConnection, id: Uuid) -> Result<Self> {
+        let id: String = id.to_string();
+        let item = sqlx::query_as(
+            r#"SELECT *
+            FROM file
+            WHERE id = ?1
+            "#,
+        )
+        .bind(id)
+        .fetch_one(&mut *connection)
+        .await?;
+        Ok(item)
+    }
+
+    pub async fn find_by_path(connection: &mut SqliteConnection, path: FilePath) -> Result<Self> {
+        let item = sqlx::query_as(
+            r#"SELECT *
+            FROM file
+            WHERE 
+                directory_path = ?1
+                AND name = ?2
+                AND file_type = ?3
+                AND version = ?4
+            "#,
+        )
+        .bind(path.directory_path)
+        .bind(path.name)
+        .bind(path.file_type)
+        .bind(
+            path.version
+                .as_ref()
+                .map(|s| s.as_str())
+                .unwrap_or("latest"),
+        )
+        .fetch_one(&mut *connection)
+        .await?;
+
+        Ok(item)
+    }
+
+    pub async fn create(connection: &mut SqliteConnection, file: CreateFile) -> Result<Self> {
+        let uuid = uuid::Uuid::now_v7().to_string();
+        let created_at = Utc::now().timestamp();
+
+        let item = sqlx::query_as(
+            r#"INSERT INTO
+            file(id, directory_path, name, file_type, version, size, state, meta, created_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            RETURNING *
+            "#,
+        )
+        .bind(uuid)
+        .bind(&file.directory_path)
+        .bind(&file.name)
+        .bind(&file.file_type)
+        .bind(&file.version)
+        .bind(file.size as i64)
+        .bind(&file.state)
+        .bind(&file.meta)
+        .bind(created_at)
+        .fetch_one(&mut *connection)
+        .await?;
+        Ok(item)
+    }
+}
+
 impl FromRow<'_, SqliteRow> for File {
     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
         let id: String = row.try_get("id")?;
@@ -47,13 +127,6 @@ impl FromRow<'_, SqliteRow> for File {
             index: "id".to_string(),
             source: e.into(),
         })?;
-
-        let dir_id: String = row.try_get("dir_id")?;
-        let dir_id: Uuid =
-            uuid::Uuid::parse_str(&dir_id).map_err(|e| sqlx::Error::ColumnDecode {
-                index: "dir_id".to_string(),
-                source: e.into(),
-            })?;
 
         let size: i64 = row.try_get("size")?;
         let size = size as u64;
@@ -73,7 +146,7 @@ impl FromRow<'_, SqliteRow> for File {
 
         Ok(Self {
             id,
-            dir_id,
+            directory_path: row.try_get("directory_path")?,
             name: row.try_get("name")?,
             file_type: row.try_get("file_type")?,
             version: row.try_get("version")?,
@@ -82,46 +155,5 @@ impl FromRow<'_, SqliteRow> for File {
             meta: row.try_get("meta")?,
             created_at,
         })
-    }
-}
-
-pub struct CreateFile {
-    pub dir_path: String,
-    pub name: String,
-    pub file_type: FileType,
-    pub version: String,
-    pub size: u64,
-    pub state: FileState,
-    pub meta: Value,
-}
-
-impl File {
-    pub async fn create(connection: &mut SqliteConnection, file: CreateFile) -> Result<Dir> {
-        let uuid = uuid::Uuid::now_v7().to_string();
-        let dir_id = Dir::find_or_create(connection, &file.dir_path)
-            .await?
-            .id
-            .to_string();
-        let created_at = Utc::now().timestamp();
-
-        let item_id: Dir = sqlx::query_as(
-            r#"INSERT INTO
-            dir_file(id, dir_id, name, file_type, version, size, state, meta, created_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-            RETURNING *
-            "#,
-        )
-        .bind(uuid)
-        .bind(dir_id)
-        .bind(&file.name)
-        .bind(&file.file_type)
-        .bind(&file.version)
-        .bind(file.size as i64)
-        .bind(&file.state)
-        .bind(&file.meta)
-        .bind(created_at)
-        .fetch_one(&mut *connection)
-        .await?;
-        Ok(item_id)
     }
 }

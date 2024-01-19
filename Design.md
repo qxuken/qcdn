@@ -46,9 +46,10 @@ A storage solution with geo replication.
 - `id` (uuid)
 - `dir_id` (uuid)
 - `name`
+- `file_type` (other, stylesheets, javascript, image, font)
+- `version` default: latest
 - `size`
-- `state` (ready, uploading, downloading, create)
-- `file_type`
+- `state` (created, uploading, downloading, ready)
 - `meta` (json)
 - `created_at`
 
