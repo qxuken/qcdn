@@ -15,9 +15,8 @@ A storage solution with geo replication.
 ## File Server HTTP methods
 
 - GET `<base>/health` - heath (protected)
-- GET `<base>/f/<file.id>.meta` - download file meta
-- GET `<base>/f/<file.dir>/<file.name>.<file.file_type>` - download file
-- GET `<base>/f/<file.dir>/<file.name>.<file.file_type>.meta` - download file meta
+- GET `<base>/f/<file.dir>/<file.name>.<file.file_type>?(@<version>)` - download file
+- GET `<base>/f/<file.dir>/<file.name>.<file.file_type>?(@<version>).meta` - download file meta
 
 ## Node Management Server gRPC
 
@@ -28,9 +27,8 @@ A storage solution with geo replication.
 
 ### Files
 
-- `upload(file_dir, file_name, size, stream bytes)` - upload file (stream)
-- `download(file_id)` - download file (stream)
-- `delete(id)` - delete file
+- `upload(file_meta, stream bytes)` - upload file (stream)
+- `delete_version(id)` - delete file
 - `get_closest_url(id, ip_addr)` - get closest node url
 
 ### Nodes communication
@@ -44,17 +42,27 @@ A storage solution with geo replication.
 ### File
 
 - `id` (uuid)
-- `dir_id` (uuid)
+- `dir`
 - `name`
 - `file_type` (other, stylesheets, javascript, image, font)
-- `version` default: latest
-- `size`
-- `state` (created, uploading, downloading, ready)
-- `meta` (json)
+- `updated_at`
 - `created_at`
 
-### Dir
+### FileVersion
 
 - `id` (uuid)
-- `path`
+- `file_id` (uuid)
+- `size`
+- `version`
+- `state` (created, downloading, ready)
 - `created_at`
+- `updated_at`
+- `deleted_at`
+
+### FileLatestVersion
+
+- `id` (uuid)
+- `file_id` (uuid)
+- `file_version_id` (uuid)
+- `created_at`
+- `deleted_at`

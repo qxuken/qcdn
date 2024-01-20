@@ -6,7 +6,7 @@ package qcdn.files;
 
 service QcdnFiles {
 	rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
-	rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty); 
+	rpc DeleteFileVersion(DeleteFileVersionRequest) returns (google.protobuf.Empty);
 	rpc GetClosestUrl(GetClosestUrlRequest) returns (GetClosestUrlResponse);
 }
 
@@ -18,9 +18,12 @@ message UploadFileRequest {
 }
 
 message UploadFileMeta {
-	string name = 1;
-	string dir = 2;
-	uint64 size = 3;
+	string dir = 1;
+	string name = 2;
+	string file_type = 3;
+	string version = 4;
+	bool is_latest = 5;
+	uint64 size = 6;
 }
 
 message UploadFilePart {
@@ -31,7 +34,7 @@ message UploadFileResponse {
 	string id = 1;
 }
 
-message DeleteFileRequest {
+message DeleteFileVersionRequest {
 	string id = 1;
 }
 

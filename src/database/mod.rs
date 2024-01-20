@@ -4,12 +4,10 @@ use anyhow::Result;
 use sqlx::{migrate::Migrator, sqlite::SqliteConnectOptions, SqlitePool};
 
 pub use connection::{DatabaseConnection, DatabasePoolConnection};
-pub use files::Dir;
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
 mod connection;
-pub mod files;
 
 #[derive(Debug, Clone)]
 pub struct Database(pub SqlitePool);

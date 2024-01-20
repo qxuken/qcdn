@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut files = QcdnFilesClient::connect(addr).await?;
 
-    let test_file = include_bytes!("../../data/input/debug.rs");
+    let test_file: &[u8; 0] = include_bytes!("../../data/input/test.txt");
     let init_message = upload_file_request::Request::Meta(UploadFileMeta {
         name: "debug.rs".to_string(),
         dir: "rs".to_string(),
