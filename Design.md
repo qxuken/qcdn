@@ -15,8 +15,8 @@ A storage solution with geo replication.
 ## File Server HTTP methods
 
 - GET `<base>/health` - heath (protected)
-- GET `<base>/f/<file.dir>/<file.name>.<file.file_type>?(@<version>)` - download file
-- GET `<base>/f/<file.dir>/<file.name>.<file.file_type>?(@<version>).meta` - download file meta
+- GET `<base>/f/<file.dir>/<file.name>(?:@<version>)` - download file
+- GET `<base>/f/<file.dir>/<file.name>(?:@<version>).meta` - download file meta
 
 ## Node Management Server gRPC
 
@@ -27,14 +27,16 @@ A storage solution with geo replication.
 
 ### Files
 
+- `get_files()` - files
+- `get_file_versions(file_id)` - files
 - `upload(file_meta, stream bytes)` - upload file (stream)
 - `delete_version(id)` - delete file
-- `get_closest_url(id, ip_addr)` - get closest node url
 
 ### Nodes communication
 
 - `connect(ip, url)` - connect to pool
 - `sync(file)` - request to download file
+- `get_closest_url(id, ip_addr)` - get closest node url
 - `updated_since(timestamp)` - updated files since
 
 ## DB
@@ -44,7 +46,7 @@ A storage solution with geo replication.
 - `id` (uuid)
 - `dir`
 - `name`
-- `file_type` (other, stylesheets, javascript, image, font)
+- `file_type` (other, stylesheets, javascript, image, font, text)
 - `updated_at`
 - `created_at`
 

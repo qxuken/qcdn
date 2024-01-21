@@ -1,5 +1,7 @@
 # Entities
 
+Page describes internal logic
+
 ## File process entities
 
 ### Files upload
@@ -7,32 +9,46 @@
 #### State transitions
 
 ```text
-  s  - File upload requested
-  1  -> File meta received(if version already exists -> e1)
-  2  -> File chunks received(if stopped before receiving full file -> e1)
-  r  -| File upload end(if stopped before receiving full file -> e1)
+  s  -  File upload requested
+        (internal error -> e1)
 
-  e1 -| File upload bail(if ended before receiving full file -> e1)
+  1  -> File meta received 
+        (version already exists -> e1)
+
+  ----> chunk received
+        (stopped before receiving full file -> e1)
+
+  r  -| File upload end
+        (ended before receiving full file -> e1)
+
+  e1 -| File upload bail
 ```
 
 #### State actions
 
 ##### File upload requested
 
-- establish connection
-- start bytes counter
+init:
+
+- establish db connection
 
 ##### File meta received
 
+init from `s`:
+
+- start bytes counter
 - create system file handler
 - create or find file record
 - create file version with downloading state
+  - throw if file already exists
 
-##### File chunks received
+chunk received:
 
 - write chunk to file
 
 ##### File upload end
+
+init from `1`:
 
 - check meta size with received amount
 - mark version as ready
@@ -40,6 +56,8 @@
 
 ##### File upload bail
 
-- delete file
+bailed:
+
+- delete system file
 - delete version
 - delete file if no version remaining

@@ -1,9 +1,10 @@
 CREATE TABLE file(
-  id                  TEXT PRIMARY KEY NOT NULL,
+  id                  BLOB PRIMARY KEY NOT NULL,
   dir                 TEXT             NOT NULL,
   name                TEXT             NOT NULL,
   file_type        INTEGER             NOT NULL,
-  created_at      DATETIME             NOT NULL
+  created_at      DATETIME             NOT NULL,
+  UNIQUE (dir, name)
 );
 
 CREATE TABLE file_version(
@@ -16,7 +17,7 @@ CREATE TABLE file_version(
   updated_at  DATETIME              NOT NULL,
   deleted_at  DATETIME                      ,
   FOREIGN KEY (file_id) REFERENCES file (id),
-  UNIQUE (file_id, version)
+  UNIQUE (file_id, version, deleted_at)
 );
 
 CREATE TABLE file_latest_version(
@@ -24,7 +25,8 @@ CREATE TABLE file_latest_version(
   file_id             TEXT                 NOT NULL,
   file_version_id     TEXT                 NOT NULL,
   created_at       DATETIME                NOT NULL,
-  deleted_at       DATETIME                        ,
+  expired_at       DATETIME                        ,
   FOREIGN KEY (file_id)  REFERENCES file (id),
-  FOREIGN KEY (file_version_id)  REFERENCES file_version (id)
+  FOREIGN KEY (file_version_id)  REFERENCES file_version (id),
+  UNIQUE (file_id, file_version_id, expired_at)
 );

@@ -8,6 +8,8 @@ pub use connection::{DatabaseConnection, DatabasePoolConnection};
 static MIGRATOR: Migrator = sqlx::migrate!();
 
 mod connection;
+pub mod files;
+mod utils;
 
 #[derive(Debug, Clone)]
 pub struct Database(pub SqlitePool);

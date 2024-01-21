@@ -1,11 +1,11 @@
-use tokio::io::AsyncWriteExt;
 use tokio_stream::StreamExt;
 use tonic::{Request, Response, Status, Streaming};
 
 use crate::{
+    entities::files::FileUploadRequested,
     grpc::{
         qcdn_files_server::QcdnFiles, upload_file_request, DeleteFileVersionRequest,
-        GetClosestUrlRequest, GetClosestUrlResponse, UploadFileMeta, UploadFileRequest,
+        GetFileVersionsRequest, GetFileVersionsResponse, GetFilesResponse, UploadFileRequest,
         UploadFileResponse,
     },
     AppState,
@@ -22,18 +22,19 @@ impl FilesService {
     }
 }
 
-impl FilesService {
-    async fn fallback_file_creation(&self, meta: &UploadFileMeta) -> Result<(), Status> {
-        self.app_state
-            .storage
-            .remove_file(&meta.dir, &meta.name)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-    }
-}
-
 #[tonic::async_trait]
 impl QcdnFiles for FilesService {
+    async fn get_files(&self, _request: Request<()>) -> Result<Response<GetFilesResponse>, Status> {
+        Err(Status::unimplemented("not implemented"))
+    }
+
+    async fn get_file_versions(
+        &self,
+        _request: Request<GetFileVersionsRequest>,
+    ) -> Result<Response<GetFileVersionsResponse>, Status> {
+        Err(Status::unimplemented("not implemented"))
+    }
+
     async fn upload_file(
         &self,
         request: Request<Streaming<UploadFileRequest>>,
@@ -41,72 +42,70 @@ impl QcdnFiles for FilesService {
         tracing::info!("Upload file stream initiated");
         let mut in_stream = request.into_inner();
 
-        let mut bytes = 0u64;
-        let mut data = None;
-        // let mut connection = self
-        //     .app_state
-        //     .db
-        //     .connect()
-        //     .await
-        //     .map_err(|e| Status::internal(e.to_string()))?;
+        let state = FileUploadRequested::init(self.app_state.db.clone())
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
 
-        while let Some(result) = in_stream.next().await {
-            match result.map(|r| r.request).ok().flatten() {
-                Some(req) => match req {
-                    upload_file_request::Request::Meta(meta) => {
-                        let file = self
-                            .app_state
-                            .storage
-                            .create_file(&meta.dir, &meta.name)
-                            .await
-                            .map_err(|e| Status::internal(e.to_string()))?;
-                        if let Err(e) = file.set_len(meta.size).await {
-                            self.fallback_file_creation(&meta).await?;
-                            return Err(Status::internal(e.to_string()));
-                        }
-
-                        tracing::info!("Starting upload {meta:?}");
-                        data = Some((meta, file));
-                    }
-                    upload_file_request::Request::Part(part) => {
-                        let (meta, file) = data.as_mut().unwrap();
-                        bytes += part.bytes.len() as u64;
-                        if let Err(e) = file.write(&part.bytes).await {
-                            self.fallback_file_creation(meta).await?;
-                            return Err(Status::internal(e.to_string()));
-                        }
-                    }
-                },
-                None => {
-                    if let Some((meta, _file)) = data.as_ref() {
-                        self.fallback_file_creation(meta).await?;
-                    }
-                    tracing::error!("error")
+        let mut state = if let Some(result) = in_stream
+            .next()
+            .await
+            .and_then(|r| r.map(|r| r.request).transpose())
+            .transpose()?
+        {
+            match result {
+                upload_file_request::Request::Meta(meta) => state
+                    .got_meta(self.app_state.storage.clone(), meta)
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?,
+                _ => {
+                    return Err(Status::failed_precondition(
+                        "UploadFileMeta should be first message",
+                    ));
                 }
+            }
+        } else {
+            return Err(Status::failed_precondition("Message not received"));
+        };
+
+        while let Some(result) = in_stream
+            .next()
+            .await
+            .and_then(|r| r.map(|r| r.request).transpose())
+            .transpose()?
+        {
+            match result {
+                upload_file_request::Request::Meta(_) => {
+                    state
+                        .cleanup()
+                        .await
+                        .map_err(|e| Status::internal(e.to_string()))?;
+                    return Err(Status::aborted(
+                        "UploadFileMeta message cannot be sent twice",
+                    ));
+                }
+                upload_file_request::Request::Part(part) => state
+                    .got_part(part)
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?,
             };
         }
 
         tracing::info!("Upload file stream ended");
+        let (file_record_id, file_version_record_id) = state
+            .end()
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
 
-        if let Some((meta, _file)) = data.filter(|(m, _)| m.size != bytes) {
-            self.fallback_file_creation(&meta).await?;
-            return Err(Status::aborted("file probably corrupted"));
-        }
-
-        Ok(Response::new(UploadFileResponse { id: "".to_string() }))
+        Ok(Response::new(UploadFileResponse {
+            file_id: file_record_id.to_string(),
+            file_version_id: file_version_record_id.to_string(),
+        }))
     }
 
     async fn delete_file_version(
         &self,
         _request: Request<DeleteFileVersionRequest>,
     ) -> Result<Response<()>, Status> {
-        Err(Status::unimplemented("not implemented"))
-    }
-
-    async fn get_closest_url(
-        &self,
-        _request: Request<GetClosestUrlRequest>,
-    ) -> Result<Response<GetClosestUrlResponse>, Status> {
         Err(Status::unimplemented("not implemented"))
     }
 }

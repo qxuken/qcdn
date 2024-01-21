@@ -9,6 +9,7 @@ pub mod app_state;
 pub mod config;
 pub mod constants;
 pub mod database;
+pub mod entities;
 pub mod grpc;
 pub mod storage;
 pub mod web;
