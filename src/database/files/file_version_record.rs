@@ -10,9 +10,9 @@ use crate::database::utils;
 #[derive(Debug, sqlx::Type, Serialize, Deserialize)]
 #[repr(i32)]
 pub enum FileVersionState {
-    Ready,
-    Downloading,
     Created,
+    Downloading,
+    Ready,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,6 +35,21 @@ impl FileVersionRecord {
             .fetch_optional(&mut *connection)
             .await?;
         Ok(item)
+    }
+
+    pub async fn find_by_file_id(
+        connection: &mut SqliteConnection,
+        file_id: &Uuid,
+    ) -> Result<Vec<FileVersionRecord>> {
+        let file_id = file_id.to_string();
+
+        let items = sqlx::query_as("SELECT * FROM file_version WHERE file_id = ?1 AND state = ?2")
+            .bind(file_id)
+            .bind(FileVersionState::Ready)
+            .fetch_all(connection)
+            .await?;
+
+        Ok(items)
     }
 
     pub async fn find_by_path_exact(

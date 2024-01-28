@@ -1,20 +1,11 @@
 # Filestore
 
-A storage solution with geo replication.
-
-## Config
-
-- `db_path` - path to sqlite db e.g. `data/filestore.db`
-- `storage_dir` - path to storage dir e.g. `data/storage`
-- `base_url` - base url e.g. `http://localhost:8080`
-- `host` - local interface address e.g. `127.0.0.1`
-- `port` - tcp port e.g. `8080`
-- `log_level` - debug, info, warn, error
-- `master_url` - url to main server (optional)
+An almost immutable storage solution with replication.
 
 ## File Server HTTP methods
 
 - GET `<base>/health` - heath (protected)
+- GET `<base>/v/<file_version.id>` - download file
 - GET `<base>/f/<file.dir>/<file.name>(?:@<version>)` - download file
 - GET `<base>/f/<file.dir>/<file.name>(?:@<version>).meta` - download file meta
 
@@ -34,10 +25,8 @@ A storage solution with geo replication.
 
 ### Nodes communication
 
-- `connect(ip, url)` - connect to pool
-- `sync(file)` - request to download file
+- `connect(ip, url, latest_file_ts)` - connect to pool
 - `get_closest_url(id, ip_addr)` - get closest node url
-- `updated_since(timestamp)` - updated files since
 
 ## DB
 
@@ -68,3 +57,13 @@ A storage solution with geo replication.
 - `file_version_id` (uuid)
 - `created_at`
 - `deleted_at`
+
+## Config
+
+- `db_path` - path to sqlite db e.g. `data/filestore.db`
+- `storage_dir` - path to storage dir e.g. `data/storage`
+- `base_url` - base url e.g. `http://localhost:8080`
+- `host` - local interface address e.g. `127.0.0.1`
+- `port` - tcp port e.g. `8080`
+- `log_level` - debug, info, warn, error
+- `master_url` - url to main server (optional)

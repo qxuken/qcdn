@@ -28,7 +28,7 @@ message GetFilesResponseItem {
 }
 
 message GetFilesResponse {
-	repeated GetFilesResponseItem files = 1;
+	repeated GetFilesResponseItem items = 1;
 }
 
 message GetFileVersionsResponseItem {
@@ -39,11 +39,11 @@ message GetFileVersionsResponseItem {
 }
 
 message GetFileVersionsRequest {
-	string id = 1;
+	string file_id = 1;
 }
 
 message GetFileVersionsResponse {
-	repeated GetFileVersionsResponseItem versions = 1;
+	repeated GetFileVersionsResponseItem items = 1;
 }
 
 message UploadFileRequest {

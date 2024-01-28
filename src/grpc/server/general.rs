@@ -25,6 +25,7 @@ impl QcdnGeneral for GeneralService {
         };
         Ok(Response::new(reply))
     }
+
     async fn version(&self, _: Request<()>) -> Result<Response<VersionResponse>, Status> {
         let reply = VersionResponse {
             version: VERSION.to_string(),

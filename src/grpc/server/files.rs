@@ -2,6 +2,10 @@ use tokio_stream::StreamExt;
 use tonic::{Request, Response, Status, Streaming};
 
 use crate::{
+    database::files::{
+        file_search::{FileSearch, FileVersionSearch},
+        file_version_record::FileVersionRecord,
+    },
     entities::files::FileUploadRequested,
     grpc::{
         qcdn_files_server::QcdnFiles, upload_file_request, DeleteFileVersionRequest,
@@ -11,7 +15,7 @@ use crate::{
     AppState,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FilesService {
     app_state: AppState,
 }
@@ -25,14 +29,46 @@ impl FilesService {
 #[tonic::async_trait]
 impl QcdnFiles for FilesService {
     async fn get_files(&self, _request: Request<()>) -> Result<Response<GetFilesResponse>, Status> {
-        Err(Status::unimplemented("not implemented"))
+        tracing::info!("Get files request recieved");
+        let mut connection = self
+            .app_state
+            .db
+            .connect()
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let items = FileSearch::get_all(&mut connection)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?
+            .into_iter()
+            .map(|item| item.into())
+            .collect();
+
+        Ok(Response::new(GetFilesResponse { items }))
     }
 
     async fn get_file_versions(
         &self,
-        _request: Request<GetFileVersionsRequest>,
+        request: Request<GetFileVersionsRequest>,
     ) -> Result<Response<GetFileVersionsResponse>, Status> {
-        Err(Status::unimplemented("not implemented"))
+        tracing::info!("Get file versions request recieved");
+        let mut connection = self
+            .app_state
+            .db
+            .connect()
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let file_id = request.into_inner().file_id;
+
+        let items = FileVersionSearch::find_by_file_id(&mut connection, &file_id)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?
+            .into_iter()
+            .map(|item| item.into())
+            .collect();
+
+        Ok(Response::new(GetFileVersionsResponse { items }))
     }
 
     async fn upload_file(
@@ -104,8 +140,30 @@ impl QcdnFiles for FilesService {
 
     async fn delete_file_version(
         &self,
-        _request: Request<DeleteFileVersionRequest>,
+        request: Request<DeleteFileVersionRequest>,
     ) -> Result<Response<()>, Status> {
-        Err(Status::unimplemented("not implemented"))
+        tracing::info!("Delete file version request recieved");
+        let mut connection = self
+            .app_state
+            .db
+            .connect()
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let file_version_id = request.into_inner().id;
+        let file_version_id = uuid::Uuid::parse_str(&file_version_id)
+            .map_err(|e| Status::invalid_argument(format!("id is not valid uuid {e:?}")))?;
+
+        match FileVersionRecord::find_by_id(&mut connection, file_version_id)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?
+        {
+            Some(fv) => fv
+                .delete(&mut connection)
+                .await
+                .map_err(|e| Status::internal(e.to_string())),
+            None => Err(Status::not_found("File version not found")),
+        }
+        .map(Response::new)
     }
 }
