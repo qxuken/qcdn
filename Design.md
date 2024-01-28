@@ -6,8 +6,7 @@ An almost immutable storage solution with replication.
 
 - GET `<base>/health` - heath (protected)
 - GET `<base>/v/<file_version.id>` - download file
-- GET `<base>/f/<file.dir>/<file.name>(?:@<version>)` - download file
-- GET `<base>/f/<file.dir>/<file.name>(?:@<version>).meta` - download file meta
+- GET `<base>/f/<file.dir>/<file.name>(@<version or tag = latest>)` - download file
 
 ## Node Management Server gRPC
 
@@ -18,25 +17,36 @@ An almost immutable storage solution with replication.
 
 ### Files
 
-- `get_files()` - files
-- `get_file_versions(file_id)` - files
+- `get_dirs()` - get list of all dirs
+- `get_dir(dir_id)` - get dir by id
+- `get_files(dir_id?)` - get list of all files
+- `get_file(file_id)` - get file by id
+- `get_file_versions(file_id)` - get list of all file versions
+- `get_file_version(file_version_id)` - get file version
+- `tag_version(file_version_id, tag)` - tag version
 - `upload(file_meta, stream bytes)` - upload file (stream)
+- `download(file_version_id)` - download file (stream)
 - `delete_version(id)` - delete file
 
 ### Nodes communication
 
-- `connect(ip, url, latest_file_ts)` - connect to pool
+- `connect(ip, url, latest_file_ts) -> stream update` - connect to pool
 - `get_closest_url(id, ip_addr)` - get closest node url
 
 ## DB
 
+### Dir
+
+- `id` (uuid)
+- `name`
+- `created_at`
+
 ### File
 
 - `id` (uuid)
-- `dir`
+- `dir_id`
 - `name`
 - `file_type` (other, stylesheets, javascript, image, font, text)
-- `updated_at`
 - `created_at`
 
 ### FileVersion
@@ -47,16 +57,15 @@ An almost immutable storage solution with replication.
 - `version`
 - `state` (created, downloading, ready)
 - `created_at`
-- `updated_at`
 - `deleted_at`
 
-### FileLatestVersion
+### FileVersionTag
 
 - `id` (uuid)
-- `file_id` (uuid)
 - `file_version_id` (uuid)
+- `name`
 - `created_at`
-- `deleted_at`
+- `activated_at`
 
 ## Config
 

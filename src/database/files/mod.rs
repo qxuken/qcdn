@@ -1,4 +1,4 @@
-pub mod file_record;
-pub mod file_search;
 pub mod file_type;
-pub mod file_version_record;
+pub mod records;
+pub mod search;
+pub mod sync;

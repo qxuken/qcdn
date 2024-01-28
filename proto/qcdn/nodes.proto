@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 package qcdn.nodes;
 
 service QcdnNodes {
-	rpc ConnectNode(ConnectionRequest) returns (stream Sync);
+	rpc ConnectNode(ConnectionRequest) returns (stream SyncMessage);
 	rpc GetClosestUrl(GetClosestUrlRequest) returns (GetClosestUrlResponse);
 }
 
@@ -16,8 +16,28 @@ message ConnectionRequest {
 	google.protobuf.Timestamp timestamp = 3;
 }
 
-message Sync {
-	string id = 1;
+message UploadedVersion {
+	string dir_id = 1;
+	string file_id = 2;
+	string file_version_id = 3;
+}
+
+message VersionTagged {
+	string tag = 1;
+	string file_version_id = 2;
+}
+
+message DeletedVersion {
+	string file_version_id = 1;
+}
+
+message SyncMessage {
+	oneof message_type {
+		UploadedVersion uploaded = 1;
+		VersionTagged tagged = 2;
+		DeletedVersion deleted = 3;
+	}
+	google.protobuf.Timestamp timestamp = 10;
 }
 
 message GetClosestUrlRequest {

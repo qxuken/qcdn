@@ -26,3 +26,9 @@ impl AppState {
         Ok(state)
     }
 }
+
+impl AppState {
+    pub fn shared(self) -> Arc<Self> {
+        Arc::new(self)
+    }
+}

@@ -53,6 +53,7 @@ init from `1`:
 - check meta size with received amount
 - mark version as ready
 - transition latest if needed
+- send update message
 
 ##### File upload bail
 
@@ -61,3 +62,4 @@ bailed:
 - delete system file
 - delete version
 - delete file if no version remaining
+- notify update

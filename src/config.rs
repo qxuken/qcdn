@@ -11,7 +11,7 @@ pub struct CliConfig {
         long,
         help = "Path to sqlite db",
         env = "FS_DB_PATH",
-        default_value = "data/filestore.db"
+        default_value = "data/qcdn.db"
     )]
     pub db_path: PathBuf,
 
