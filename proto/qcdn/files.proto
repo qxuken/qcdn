@@ -27,11 +27,11 @@ enum FileType {
 }
 
 message GetDirRequest {
-	string id = 1;
+	int64 id = 1;
 }
 
 message GetDirResponse {
-	string id = 1;
+	int64 id = 1;
 	string name = 2;
 }
 
@@ -44,11 +44,11 @@ message GetFilesRequest {
 }
 
 message GetFileRequest {
-	string id = 1;
+	int64 id = 1;
 }
 
 message GetFileResponse {
-	string id = 1;
+	int64 id = 1;
 	string dir_id = 2;
 	string name = 3;
 	FileType file_type = 4;
@@ -59,16 +59,16 @@ message GetFilesResponse {
 }
 
 message GetFileVersionsRequest {
-	string file_id = 1;
+	int64 file_id = 1;
 }
 
 message GetFileVersionRequest {
-	string id = 1;
+	int64 id = 1;
 }
 
 message GetFileVersionResponse {
-	string id = 1;
-	string file_id = 2;
+	int64 id = 1;
+	int64 file_id = 2;
 	string version = 3;
 	uint64 size = 4;
 	repeated string tags = 5;
@@ -99,20 +99,20 @@ message UploadRequest {
 }
 
 message UploadResponse {
-	string dir_id = 1;
-	string file_id = 2;
-	string file_version_id = 3;
+	int64 dir_id = 1;
+	int64 file_id = 2;
+	int64 file_version_id = 3;
 }
 
 message DownloadRequest {
-	string file_version_id = 1;
+	int64 file_version_id = 1;
 }
 
 message TagVersionRequest {
-	string file_version_id = 1;
+	int64 file_version_id = 1;
 	string tag = 2;
 }
 
 message DeleteFileVersionRequest {
-	string id = 1;
+	int64 id = 1;
 }
