@@ -44,9 +44,4 @@ diesel::joinable!(file -> dir (dir_id));
 diesel::joinable!(file_version -> file (file_id));
 diesel::joinable!(file_version_tag -> file_version (file_version_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    dir,
-    file,
-    file_version,
-    file_version_tag,
-);
+diesel::allow_tables_to_appear_in_same_query!(dir, file, file_version, file_version_tag,);

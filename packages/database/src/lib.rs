@@ -4,6 +4,7 @@ use diesel::{
     r2d2::{ConnectionManager, Pool, PooledConnection},
     SqliteConnection,
 };
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 pub use error::*;
 pub use models::*;
@@ -11,6 +12,8 @@ pub use models::*;
 pub mod error;
 pub mod models;
 pub(crate) mod schema;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("../../migrations");
 
 pub type DatabaseConnection = PooledConnection<ConnectionManager<diesel::SqliteConnection>>;
 
@@ -34,10 +37,19 @@ impl Database {
 }
 
 impl Database {
+    #[instrument]
     pub fn get_connection(&self) -> Result<DatabaseConnection, error::DatabaseError> {
         let pool = self.db.clone();
 
         pool.get()
             .map_err(|e| error::DatabaseError::PoolConnectionError(e.to_string()))
+    }
+
+    #[instrument]
+    pub fn run_migrations(&self) -> Result<(), error::DatabaseError> {
+        let mut connection = self.get_connection()?;
+        connection.run_pending_migrations(MIGRATIONS)?;
+
+        Ok(())
     }
 }

@@ -1,6 +1,7 @@
 use chrono::{NaiveDateTime, Utc};
 use diesel::{insert_into, prelude::*};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::{DatabaseConnection, DatabaseError};
 
@@ -18,6 +19,7 @@ pub struct NewFileVersion {
 }
 
 impl NewFileVersion {
+    #[instrument(skip(connection))]
     pub fn create(
         mut self,
         connection: &mut DatabaseConnection,
@@ -27,8 +29,7 @@ impl NewFileVersion {
         if FileVersion::find_by_version_optional(connection, &self.file_id, &self.version)?
             .is_some()
         {
-            return DatabaseError::PreconditionError("Version is already exists".to_string())
-                .as_err();
+            return DatabaseError::PreconditionError("Version is already exists".to_string()).err();
         }
 
         if self.created_at.is_none() {

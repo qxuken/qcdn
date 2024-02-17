@@ -1,6 +1,7 @@
 use chrono::{NaiveDateTime, Utc};
 use diesel::{insert_into, prelude::*};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::{DatabaseConnection, DatabaseError};
 
@@ -32,6 +33,7 @@ impl FileUpsert {
             .map_err(DatabaseError::from)
     }
 
+    #[instrument(skip(connection))]
     pub fn find_by_name_or_create(
         self,
         connection: &mut DatabaseConnection,

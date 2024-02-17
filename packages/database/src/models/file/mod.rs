@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use diesel::{delete, prelude::*};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::{DatabaseConnection, DatabaseError};
 
@@ -27,9 +28,8 @@ pub struct File {
 }
 
 impl File {
-    pub fn get_all(
-        connection: &mut DatabaseConnection,
-    ) -> Result<Vec<Self>, DatabaseError> {
+    #[instrument(skip(connection))]
+    pub fn get_all(connection: &mut DatabaseConnection) -> Result<Vec<Self>, DatabaseError> {
         use crate::schema::file::dsl;
 
         dsl::file
@@ -38,6 +38,7 @@ impl File {
             .map_err(DatabaseError::from)
     }
 
+    #[instrument(skip(connection))]
     pub fn find_all_by_dir(
         connection: &mut DatabaseConnection,
         dir: &Dir,
@@ -51,6 +52,7 @@ impl File {
             .map_err(DatabaseError::from)
     }
 
+    #[instrument(skip(connection))]
     pub async fn find_by_id(
         connection: &mut DatabaseConnection,
         id: i64,
@@ -64,6 +66,7 @@ impl File {
             .map_err(DatabaseError::from)
     }
 
+    #[instrument(skip(connection))]
     pub fn find_by_name_optional(
         connection: &mut DatabaseConnection,
         dir_id: &i64,
@@ -80,6 +83,7 @@ impl File {
 }
 
 impl File {
+    #[instrument(skip(connection))]
     pub fn delete_if_no_versions_exists(
         &self,
         connection: &mut DatabaseConnection,

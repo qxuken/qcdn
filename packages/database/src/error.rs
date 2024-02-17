@@ -1,6 +1,7 @@
+use std::error::Error;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum DatabaseError {
     #[error("Pool setup error: {0}")]
     PoolSetupError(String),
@@ -12,10 +13,12 @@ pub enum DatabaseError {
     NotFound(String),
     #[error("Requirements is not set: {0}")]
     PreconditionError(String),
+    #[error("Database error: {0}")]
+    Other(String),
 }
 
 impl DatabaseError {
-    pub fn as_err<S>(self) -> Result<S, Self> {
+    pub fn err<S>(self) -> Result<S, Self> {
         Err(self)
     }
 }
@@ -26,5 +29,11 @@ impl From<diesel::result::Error> for DatabaseError {
             diesel::result::Error::NotFound => Self::NotFound("".to_string()),
             v => Self::QueryError(v.to_string()),
         }
+    }
+}
+
+impl From<Box<dyn Error + Send + Sync>> for DatabaseError {
+    fn from(value: Box<dyn Error + Send + Sync>) -> Self {
+        Self::Other(value.to_string())
     }
 }

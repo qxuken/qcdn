@@ -1,3 +1,5 @@
+use tracing::instrument;
+
 use chrono::{NaiveDateTime, Utc};
 use diesel::{delete, prelude::*, update};
 use serde::{Deserialize, Serialize};
@@ -40,6 +42,7 @@ pub struct FileVersion {
 }
 
 impl FileVersion {
+    #[instrument(skip(connection))]
     pub fn find_by_file_id(
         connection: &mut DatabaseConnection,
         file_id: i64,
@@ -53,6 +56,7 @@ impl FileVersion {
             .map_err(DatabaseError::from)
     }
 
+    #[instrument(skip(connection))]
     pub fn find_by_id(connection: &mut DatabaseConnection, id: i64) -> Result<Self, DatabaseError> {
         use crate::schema::file_version::dsl;
 
@@ -63,6 +67,7 @@ impl FileVersion {
             .map_err(DatabaseError::from)
     }
 
+    #[instrument(skip(connection))]
     pub fn find_by_version_optional(
         connection: &mut DatabaseConnection,
         file_id: &i64,
@@ -80,6 +85,7 @@ impl FileVersion {
 }
 
 impl FileVersion {
+    #[instrument(skip(connection))]
     pub fn path(
         &self,
         connection: &mut DatabaseConnection,
@@ -100,6 +106,7 @@ impl FileVersion {
         })
     }
 
+    #[instrument(skip(connection))]
     pub fn update_state(
         &mut self,
         connection: &mut DatabaseConnection,
@@ -116,6 +123,7 @@ impl FileVersion {
         Ok(())
     }
 
+    #[instrument(skip(connection))]
     pub fn delete(&mut self, connection: &mut DatabaseConnection) -> Result<(), DatabaseError> {
         use crate::schema::file_version::dsl;
 
@@ -130,12 +138,13 @@ impl FileVersion {
         Ok(())
     }
 
+    #[instrument(skip(connection))]
     pub fn unsafe_delete(&self, connection: &mut DatabaseConnection) -> Result<(), DatabaseError> {
         if self.state == FileVersionState::Ready {
             return DatabaseError::PreconditionError(
                 "Versions with ready state cannot be deleted".to_string(),
             )
-            .as_err();
+            .err();
         }
 
         connection.transaction::<_, DatabaseError, _>(|tx| {
