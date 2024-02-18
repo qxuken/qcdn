@@ -87,11 +87,10 @@ impl Instrumentation {
                         .iter()
                         .map(|p| p.replace('-', "_"))
                         .map(|p| format!("{p}={log_level}"))
-                        .fold(format!("{PACKAGE_NAME}={log_level}"), |mut acc, p| {
+                        .fold(format!("{}={log_level}", PACKAGE_NAME), |mut acc, p| {
                             acc.push_str(&format!(",{p}"));
                             acc
                         });
-                    println!("{default:?}");
                     EnvFilter::try_new(default)?
                 } else {
                     EnvFilter::try_new("")?

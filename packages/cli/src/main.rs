@@ -1,8 +1,8 @@
 use clap::Parser;
-use qcdn_proto_client;
 use std::io::{Error, IsTerminal};
 
 mod cli;
+mod constants;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::config::HookBuilder::default()
@@ -15,7 +15,7 @@ fn main() -> color_eyre::Result<()> {
         .install()?;
 
     let cli = cli::Cli::parse();
-    cli.instrumentation.setup(&[env!("CARGO_PKG_NAME")])?;
+    cli.instrumentation.setup(&[constants::PACKAGE_NAME, qcdn_proto_client::PACKAGE_NAME])?;
 
     tracing::info!("log_level: {}", cli.instrumentation.log_level());
     tracing::info!("{cli:#?}");
@@ -25,7 +25,7 @@ fn main() -> color_eyre::Result<()> {
     tracing::trace!("trace");
     tracing::error!("error");
 
-    // Err(Error::other("throw"))?;
+    Err(Error::other("throw"))?;
 
     Ok(())
 }
