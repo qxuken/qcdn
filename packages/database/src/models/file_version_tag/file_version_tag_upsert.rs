@@ -18,12 +18,16 @@ pub struct FileVersionTagUpsert {
 
 impl FileVersionTagUpsert {
     #[instrument(skip(connection))]
-    fn create(mut self, connection: &mut DatabaseConnection) -> Result<File, DatabaseError> {
+    fn create(self, connection: &mut DatabaseConnection) -> Result<FileVersionTag, DatabaseError> {
         use crate::schema::file_version_tag::dsl;
         let created_at = self.created_at.unwrap_or_else(|| Utc::now().naive_utc());
 
         insert_into(dsl::file_version_tag)
-            .values((&self, dsl::created_at.eq(created_at), dsl::activated_at.eq(created_at)))
+            .values((
+                &self,
+                dsl::created_at.eq(created_at),
+                dsl::activated_at.eq(created_at),
+            ))
             .returning(FileVersionTag::as_returning())
             .get_result(connection)
             .map_err(DatabaseError::from)
@@ -34,7 +38,11 @@ impl FileVersionTagUpsert {
         self,
         connection: &mut DatabaseConnection,
     ) -> Result<FileVersionTag, DatabaseError> {
-        let item = match FileVersionTag::find_by_name_optional(connection, &self.file_version_id, &self.name)? {
+        let item = match FileVersionTag::find_by_name_optional(
+            connection,
+            &self.file_version_id,
+            &self.name,
+        )? {
             Some(mut tag) => {
                 tag.move_to_version(connection, &self.file_version_id)?;
                 tag

@@ -1,4 +1,5 @@
 use clap::Parser;
+use qcdn_proto_client;
 use std::io::{Error, IsTerminal};
 
 mod cli;
@@ -24,7 +25,7 @@ fn main() -> color_eyre::Result<()> {
     tracing::trace!("trace");
     tracing::error!("error");
 
-    Err(Error::other("throw"))?;
+    // Err(Error::other("throw"))?;
 
     Ok(())
 }

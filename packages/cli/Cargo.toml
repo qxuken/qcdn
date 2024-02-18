@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 qcdn_tracing_setup = { path = "../tracing-setup" }
+qcdn_proto_client = { path = "../proto_client" }
 clap.workspace = true
 color-eyre.workspace = true
 tracing.workspace = true

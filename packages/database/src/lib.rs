@@ -8,12 +8,14 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 pub use error::*;
 pub use models::*;
+pub use constants::*;
 
 pub mod error;
 pub mod models;
+pub mod constants;
 pub(crate) mod schema;
 
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("../../migrations");
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 pub type DatabaseConnection = PooledConnection<ConnectionManager<diesel::SqliteConnection>>;
 
