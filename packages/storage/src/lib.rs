@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use color_eyre::{Report, Result};
+use color_eyre::{eyre::eyre, Report, Result};
 use tokio::fs;
 use tracing::instrument;
 
@@ -19,7 +19,7 @@ pub struct Storage(Arc<PathBuf>);
 impl Storage {
     #[instrument]
     pub async fn try_from_path(path: &Path) -> Result<Self> {
-        tracing::info!("Creating storage");
+        tracing::trace!("Creating storage");
         let dir = if path.is_absolute() {
             path.into()
         } else {
@@ -31,10 +31,11 @@ impl Storage {
             fs::create_dir(&dir).await?;
         }
         if !dir.is_dir() {
-            return Err(Report::msg(format!("{dir:?} is not a directory")));
+            return Err(eyre!(format!("{dir:?} is not a directory")));
         }
 
         let storage = Self(Arc::new(dir.to_path_buf()));
+        tracing::info!("Created storage");
         tracing::trace!("{:?}", storage);
         Ok(storage)
     }

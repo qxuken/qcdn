@@ -4,6 +4,7 @@ members = ["packages/*"]
 
 [workspace.dependencies]
 dotenvy = { version = "0.15.7", features = ["clap"] }
+thiserror = "1.0.57"
 tokio = { version = "1.36.0", features = ["full"] }
 tokio-stream = "0.1.14"
 axum = "0.7.4"

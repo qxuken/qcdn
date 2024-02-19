@@ -1,15 +1,14 @@
 use chrono::{NaiveDateTime, Utc};
-use diesel::{insert_into, prelude::*};
+use color_eyre::Result;
 use serde::{Deserialize, Serialize};
+use sqlx::SqliteConnection;
 use tracing::instrument;
 
-use crate::{DatabaseConnection, DatabaseError};
+use crate::DatabaseError;
 
 use super::FileVersionTag;
 
-#[derive(Debug, Deserialize, Serialize, Insertable)]
-#[diesel(table_name = crate::schema::file_version_tag)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileVersionTagUpsert {
     pub file_version_id: i64,
     pub name: String,
@@ -18,36 +17,47 @@ pub struct FileVersionTagUpsert {
 
 impl FileVersionTagUpsert {
     #[instrument(skip(connection))]
-    fn create(self, connection: &mut DatabaseConnection) -> Result<FileVersionTag, DatabaseError> {
-        use crate::schema::file_version_tag::dsl;
+    async fn create(
+        self,
+        connection: &mut SqliteConnection,
+    ) -> Result<FileVersionTag, DatabaseError> {
         let created_at = self.created_at.unwrap_or_else(|| Utc::now().naive_utc());
 
-        insert_into(dsl::file_version_tag)
-            .values((
-                &self,
-                dsl::created_at.eq(created_at),
-                dsl::activated_at.eq(created_at),
-            ))
-            .returning(FileVersionTag::as_returning())
-            .get_result(connection)
-            .map_err(DatabaseError::from)
+        let item = sqlx::query_as!(
+            FileVersionTag,
+            r#"
+            INSERT INTO file_version_tag(file_version_id, name, created_at, activated_at)
+            VALUES (?1, ?2, ?3, ?3)
+            RETURNING *
+            "#,
+            self.file_version_id,
+            self.name,
+            created_at,
+        )
+        .fetch_one(&mut *connection)
+        .await?;
+
+        Ok(item)
     }
 
     #[instrument(skip(connection))]
-    pub fn create_or_move(
+    pub async fn create_or_move(
         self,
-        connection: &mut DatabaseConnection,
+        connection: &mut SqliteConnection,
     ) -> Result<FileVersionTag, DatabaseError> {
-        let item = match FileVersionTag::find_by_name_optional(
+        let item = match FileVersionTag::find_by_version_and_name(
             connection,
             &self.file_version_id,
             &self.name,
-        )? {
+        )
+        .await?
+        {
             Some(mut tag) => {
-                tag.move_to_version(connection, &self.file_version_id)?;
+                tag.move_to_version(connection, &self.file_version_id)
+                    .await?;
                 tag
             }
-            None => self.create(connection)?,
+            None => self.create(connection).await?,
         };
 
         Ok(item)

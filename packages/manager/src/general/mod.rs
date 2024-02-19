@@ -18,6 +18,7 @@ impl QcdnGeneral for GeneralService {
     async fn ping(&self, request: Request<PingMessage>) -> Result<Response<PingMessage>, Status> {
         let now = SystemTime::now();
         let now_datetime: DateTime<Utc> = now.into();
+
         let from = request
             .into_inner()
             .timestamp
@@ -26,6 +27,7 @@ impl QcdnGeneral for GeneralService {
             })
             .map(|d| d.format(DATETIME_FORMAT).to_string())
             .unwrap_or_else(|| "Unknown".to_string());
+
         tracing::info!(
             "Ping request from {} at {}",
             from,

@@ -5,12 +5,14 @@ edition = "2021"
 publish = false
 
 [dependencies]
+qcdn_database = { path = "../database" }
 tonic.workspace = true
 tonic-build.workspace = true
 tonic-types.workspace = true
 tonic-health.workspace = true
 prost.workspace = true
 prost-types.workspace = true
+serde = { version = "1.0.196", features = ["derive"] }
 
 [build-dependencies]
 tonic-build.workspace = true

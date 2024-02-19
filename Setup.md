@@ -13,7 +13,7 @@
 3. Install `sqlx-cli`
 
     ```bash
-    cargo install diesel_cli --no-default-features --features sqlite
+    cargo install sqlx-cli
     ```
 
 ## Development
@@ -26,13 +26,15 @@
   sqlx migrate add <name>
   ```
 
-  > Add `-r` flag for a reversible migration
+  > Add `-r` flag for a reversible migration.
+  > Add --source ./packages/database/migrations arg to create migrations in a different directory 
 
 - **Check** migration
 
   ```bash
   sqlx migrate info
   ```
+  > Add --source ./packages/database/migrations --database-url=sqlite://data/filestore.db arg to check migrations in a different directory
 
 - **Run** migrations
 
@@ -45,4 +47,5 @@
   ```bash
   sqlx migrate revert
   ```
-  
+  .
+

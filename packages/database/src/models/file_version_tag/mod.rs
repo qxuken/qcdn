@@ -1,17 +1,16 @@
-use crate::{DatabaseConnection, DatabaseError};
 use chrono::{NaiveDateTime, Utc};
-use diesel::{prelude::*, update};
+use color_eyre::Result;
+use serde::{Deserialize, Serialize};
+use sqlx::SqliteConnection;
 use tracing::instrument;
 
-use super::FileVersion;
 pub use file_version_tag_upsert::FileVersionTagUpsert;
+
+use crate::DatabaseError;
 
 mod file_version_tag_upsert;
 
-#[derive(Queryable, Selectable, Identifiable, Associations, AsChangeset, PartialEq, Eq, Debug)]
-#[diesel(belongs_to(FileVersion))]
-#[diesel(table_name = crate::schema::file_version_tag)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileVersionTag {
     pub id: i64,
     pub file_version_id: i64,
@@ -22,55 +21,58 @@ pub struct FileVersionTag {
 
 impl FileVersionTag {
     #[instrument(skip(connection))]
-    pub fn find_by_file_version(
-        connection: &mut DatabaseConnection,
+    pub async fn find_by_file_version(
+        connection: &mut SqliteConnection,
         file_version_id: &i64,
     ) -> Result<Vec<Self>, DatabaseError> {
-        use crate::schema::file_version_tag::dsl;
+        let items = sqlx::query_as!(
+            Self,
+            "SELECT * FROM file_version_tag WHERE file_version_id = ?",
+            file_version_id,
+        )
+        .fetch_all(connection)
+        .await?;
 
-        dsl::file_version_tag
-            .filter(dsl::file_version_id.eq(file_version_id))
-            .select(Self::as_select())
-            .get_results(connection)
-            .map_err(DatabaseError::from)
+        Ok(items)
     }
 
     #[instrument(skip(connection))]
-    pub fn find_by_name_optional(
-        connection: &mut DatabaseConnection,
+    pub async fn find_by_version_and_name(
+        connection: &mut SqliteConnection,
         file_version_id: &i64,
         name: &str,
     ) -> Result<Option<Self>, DatabaseError> {
-        use crate::schema::file_version_tag::dsl;
+        let items = sqlx::query_as!(
+            Self,
+            "SELECT * FROM file_version_tag WHERE file_version_id = ? AND name = ?",
+            file_version_id,
+            name
+        )
+        .fetch_optional(connection)
+        .await?;
 
-        dsl::file_version_tag
-            .filter(dsl::file_version_id.eq(file_version_id))
-            .filter(dsl::name.eq(name))
-            .select(Self::as_select())
-            .first(connection)
-            .optional()
-            .map_err(DatabaseError::from)
+        Ok(items)
     }
 }
 
 impl FileVersionTag {
     #[instrument(skip(connection))]
-    pub fn move_to_version(
+    pub async fn move_to_version(
         &mut self,
-        connection: &mut DatabaseConnection,
+        connection: &mut SqliteConnection,
         file_version_id: &i64,
     ) -> Result<(), DatabaseError> {
-        use crate::schema::file_version_tag::dsl;
+        let now = Utc::now().naive_utc();
 
-        let activated_at = update(&*self)
-            .set((
-                dsl::file_version_id.eq(file_version_id),
-                dsl::activated_at.eq(Utc::now().naive_utc()),
-            ))
-            .returning(dsl::activated_at)
-            .get_result(connection)?;
+        sqlx::query!(
+            "UPDATE file_version_tag SET file_version_id = ?1, activated_at = ?2  WHERE file_version_id = ?1",
+            self.id,
+            now,
+        )
+        .execute(connection)
+        .await?;
 
-        self.activated_at = activated_at;
+        self.activated_at = now;
         self.file_version_id = *file_version_id;
         Ok(())
     }

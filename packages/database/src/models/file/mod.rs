@@ -1,24 +1,18 @@
 use chrono::NaiveDateTime;
-use diesel::{delete, prelude::*};
+use color_eyre::Result;
 use serde::{Deserialize, Serialize};
+use sqlx::SqliteConnection;
 use tracing::instrument;
-
-use crate::{DatabaseConnection, DatabaseError};
-
-use super::{Dir, FileVersion};
 
 pub use file_type::FileType;
 pub use file_upsert::FileUpsert;
 
+use crate::DatabaseError;
+
 mod file_type;
 mod file_upsert;
 
-#[derive(
-    Debug, Deserialize, Serialize, Queryable, Selectable, Identifiable, Associations, PartialEq, Eq,
-)]
-#[diesel(belongs_to(Dir))]
-#[diesel(table_name = crate::schema::file)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct File {
     pub id: i64,
     pub dir_id: i64,
@@ -29,74 +23,66 @@ pub struct File {
 
 impl File {
     #[instrument(skip(connection))]
-    pub fn get_all(connection: &mut DatabaseConnection) -> Result<Vec<Self>, DatabaseError> {
-        use crate::schema::file::dsl;
-
-        dsl::file
-            .select(Self::as_select())
-            .get_results(connection)
-            .map_err(DatabaseError::from)
-    }
-
-    #[instrument(skip(connection))]
-    pub fn find_all_by_dir(
-        connection: &mut DatabaseConnection,
-        dir: &Dir,
-        offset: Option<i64>,
-        limit: Option<i64>,
+    pub async fn find_all_by_dir(
+        connection: &mut SqliteConnection,
+        dir_id: &i64,
     ) -> Result<Vec<Self>, DatabaseError> {
-        Self::belonging_to(dir)
-            .offset(offset.unwrap_or_default())
-            .limit(limit.unwrap_or(10))
-            .get_results(connection)
-            .map_err(DatabaseError::from)
+        let items = sqlx::query_as!(Self, "SELECT * FROM file WHERE dir_id = ?", dir_id)
+            .fetch_all(connection)
+            .await?;
+
+        Ok(items)
     }
 
     #[instrument(skip(connection))]
     pub async fn find_by_id(
-        connection: &mut DatabaseConnection,
+        connection: &mut SqliteConnection,
         id: i64,
-    ) -> Result<Self, DatabaseError> {
-        use crate::schema::file::dsl;
+    ) -> Result<Option<Self>, DatabaseError> {
+        let item = sqlx::query_as!(Self, "SELECT * FROM file WHERE id = ?", id)
+            .fetch_optional(connection)
+            .await?;
 
-        dsl::file
-            .find(id)
-            .select(Self::as_select())
-            .first(connection)
-            .map_err(DatabaseError::from)
+        Ok(item)
     }
 
     #[instrument(skip(connection))]
-    pub fn find_by_name_optional(
-        connection: &mut DatabaseConnection,
+    pub async fn find_by_dir_and_name(
+        connection: &mut SqliteConnection,
         dir_id: &i64,
         name: &str,
     ) -> Result<Option<Self>, DatabaseError> {
-        use crate::schema::file::dsl;
+        let item = sqlx::query_as!(
+            Self,
+            "SELECT * FROM file WHERE dir_id = ? AND name = ?",
+            dir_id,
+            name
+        )
+        .fetch_optional(connection)
+        .await?;
 
-        dsl::file
-            .filter(dsl::dir_id.eq(dir_id).and(dsl::name.eq(name)))
-            .first(connection)
-            .optional()
-            .map_err(DatabaseError::from)
+        Ok(item)
     }
 }
 
 impl File {
     #[instrument(skip(connection))]
-    pub fn delete_if_no_versions_exists(
+    pub async fn delete_if_no_versions_exists(
         &self,
-        connection: &mut DatabaseConnection,
+        connection: &mut SqliteConnection,
     ) -> Result<(), DatabaseError> {
-        let files_count = FileVersion::belonging_to(self)
-            .count()
-            .get_result::<i64>(connection)?;
+        sqlx::query(
+            r#"
+            DELETE FROM file
+            WHERE
+                id = ?1
+                AND (SELECT COUNT(*) FROM file_version WHERE file_id = ?1) = 0
+            "#,
+        )
+        .bind(self.id.to_string())
+        .execute(connection)
+        .await?;
 
-        if files_count != 0 {
-            return Ok(());
-        }
-
-        delete(self).execute(connection)?;
         Ok(())
     }
 }

@@ -1,15 +1,14 @@
 use chrono::{NaiveDateTime, Utc};
-use diesel::{insert_into, prelude::*};
+use color_eyre::Result;
 use serde::{Deserialize, Serialize};
+use sqlx::SqliteConnection;
 use tracing::instrument;
 
-use crate::{DatabaseConnection, DatabaseError};
+use crate::DatabaseError;
 
 use super::Dir;
 
-#[derive(Debug, Deserialize, Serialize, Insertable)]
-#[diesel(table_name = crate::schema::dir)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DirUpsert {
     pub name: String,
     pub created_at: Option<NaiveDateTime>,
@@ -17,26 +16,35 @@ pub struct DirUpsert {
 
 impl DirUpsert {
     #[instrument(skip(connection))]
-    pub fn create(mut self, connection: &mut DatabaseConnection) -> Result<Dir, DatabaseError> {
-        use crate::schema::dir::dsl;
+    async fn create(self, connection: &mut SqliteConnection) -> Result<Dir, DatabaseError> {
+        let created_at = self.created_at.unwrap_or_else(|| Utc::now().naive_utc());
 
-        if self.created_at.is_none() {
-            self.created_at = Some(Utc::now().naive_utc())
-        }
+        let item = sqlx::query_as!(
+            Dir,
+            r#"
+                INSERT INTO dir(name, created_at)
+                VALUES (?, ?)
+                RETURNING *
+            "#,
+            self.name,
+            created_at
+        )
+        .fetch_one(connection)
+        .await?;
 
-        insert_into(dsl::dir)
-            .values(&self)
-            .returning(Dir::as_returning())
-            .get_result(connection)
-            .map_err(DatabaseError::from)
+        Ok(item)
     }
 
     #[instrument(skip(connection))]
     pub async fn find_by_name_or_create(
         self,
-        connection: &mut DatabaseConnection,
+        connection: &mut SqliteConnection,
     ) -> Result<Dir, DatabaseError> {
-        Dir::find_by_name_optional(connection, &self.name)
-            .and_then(|r| r.map(Ok).unwrap_or_else(|| self.create(connection)))
+        let item = match Dir::find_by_name(connection, &self.name).await? {
+            Some(dir) => dir,
+            None => self.create(connection).await?,
+        };
+
+        Ok(item)
     }
 }

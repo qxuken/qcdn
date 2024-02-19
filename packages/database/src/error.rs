@@ -23,10 +23,10 @@ impl DatabaseError {
     }
 }
 
-impl From<diesel::result::Error> for DatabaseError {
-    fn from(value: diesel::result::Error) -> Self {
+impl From<sqlx::Error> for DatabaseError {
+    fn from(value: sqlx::Error) -> Self {
         match value {
-            diesel::result::Error::NotFound => Self::NotFound("".to_string()),
+            sqlx::Error::RowNotFound => Self::NotFound("".to_string()),
             v => Self::QueryError(v.to_string()),
         }
     }

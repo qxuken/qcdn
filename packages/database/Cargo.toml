@@ -8,17 +8,15 @@ publish = false
 
 [dependencies]
 color-eyre.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 serde.workspace = true
 chrono.workspace = true
-diesel = { version = "2.1.4", default-features = false, features = [
-  "extras",
+thiserror.workspace = true
+sqlx = { version = "0.7.3", features = [
+  "runtime-tokio",
   "sqlite",
-  "r2d2",
-  "serde_json",
-  "libsqlite3-sys",
-  "returning_clauses_for_sqlite_3_35",
+  "macros",
+  "migrate",
+  "chrono",
 ] }
-diesel-enum = "0.2.1"
-diesel_migrations = { version = "2.1.0", features = ["sqlite"] }
-thiserror = "1.0.57"

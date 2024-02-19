@@ -1,17 +1,21 @@
-use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::SmallInt};
-use diesel_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::DatabaseError;
-
-#[derive(
-    Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow, DbEnum,
-)]
-#[diesel(sql_type = SmallInt)]
-#[diesel_enum(error_fn = DatabaseError::NotFound)]
-#[diesel_enum(error_type = DatabaseError)]
+#[derive(Debug, sqlx::Type, Serialize, Deserialize)]
+#[repr(i64)]
 pub enum FileVersionState {
     Created,
     Downloading,
     Ready,
+    Error = -1,
+}
+
+impl From<i64> for FileVersionState {
+    fn from(value: i64) -> Self {
+        match value {
+            0 => FileVersionState::Created,
+            1 => FileVersionState::Downloading,
+            2 => FileVersionState::Ready,
+            _ => FileVersionState::Error,
+        }
+    }
 }

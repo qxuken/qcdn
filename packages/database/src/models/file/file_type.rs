@@ -1,15 +1,7 @@
-use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::SmallInt};
-use diesel_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::DatabaseError;
-
-#[derive(
-    Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow, DbEnum,
-)]
-#[diesel(sql_type = SmallInt)]
-#[diesel_enum(error_fn = DatabaseError::NotFound)]
-#[diesel_enum(error_type = DatabaseError)]
+#[derive(Debug, sqlx::Type, Serialize, Deserialize)]
+#[repr(i64)]
 pub enum FileType {
     Other,
     Stylesheets,
@@ -17,4 +9,19 @@ pub enum FileType {
     Image,
     Font,
     Text,
+    Unknown = -1,
+}
+
+impl From<i64> for FileType {
+    fn from(value: i64) -> Self {
+        match value {
+            0 => FileType::Other,
+            1 => FileType::Stylesheets,
+            2 => FileType::Javascript,
+            3 => FileType::Image,
+            4 => FileType::Font,
+            5 => FileType::Text,
+            _ => FileType::Unknown,
+        }
+    }
 }

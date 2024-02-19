@@ -1,5 +1,4 @@
 use clap::Parser;
-use color_eyre::eyre::OptionExt;
 use tonic::transport::Server;
 
 use qcdn_proto_server::qcdn_general_server::QcdnGeneralServer;
@@ -29,10 +28,8 @@ async fn main() -> color_eyre::Result<()> {
     let storage = qcdn_storage::Storage::try_from_path(&cli.data).await?;
 
     let db_path = storage.get_path(qcdn_database::DB_NAME);
-    let db = qcdn_database::Database::try_new(
-        db_path.to_str().ok_or_eyre("Expected to have valid path")?,
-    )?;
-    db.run_migrations()?;
+    let db = qcdn_database::Database::try_from_path(&db_path).await?;
+    db.run_migrations().await?;
 
     let general = QcdnGeneralServer::new(GeneralService::default());
 

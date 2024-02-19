@@ -1,36 +1,20 @@
-use tracing::instrument;
-
 use chrono::{NaiveDateTime, Utc};
-use diesel::{delete, prelude::*, update};
+use color_eyre::Result;
 use serde::{Deserialize, Serialize};
-
-use crate::{DatabaseConnection, DatabaseError, FileVersionTag};
-
-use super::File;
+use sqlx::{Connection, SqliteConnection};
+use tracing::instrument;
 
 pub use file_version_path_parts::FileVersionPathParts;
 pub use file_version_state::FileVersionState;
 pub use new_file_version::NewFileVersion;
 
+use crate::DatabaseError;
+
 mod file_version_path_parts;
 mod file_version_state;
 mod new_file_version;
 
-#[derive(
-    Debug,
-    Deserialize,
-    Serialize,
-    Queryable,
-    Selectable,
-    Identifiable,
-    AsChangeset,
-    Associations,
-    PartialEq,
-    Eq,
-)]
-#[diesel(belongs_to(File))]
-#[diesel(table_name = crate::schema::file_version)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileVersion {
     pub id: i64,
     pub file_id: i64,
@@ -43,80 +27,99 @@ pub struct FileVersion {
 
 impl FileVersion {
     #[instrument(skip(connection))]
-    pub fn find_by_file_id(
-        connection: &mut DatabaseConnection,
+    pub async fn find_by_file_id(
+        connection: &mut SqliteConnection,
         file_id: i64,
     ) -> Result<Vec<Self>, DatabaseError> {
-        use crate::schema::file_version::dsl;
+        let items = sqlx::query_as!(
+            Self,
+            "SELECT * FROM file_version WHERE file_id = ?",
+            file_id,
+        )
+        .fetch_all(connection)
+        .await?;
 
-        dsl::file_version
-            .filter(dsl::file_id.eq(file_id))
-            .select(Self::as_select())
-            .get_results(connection)
-            .map_err(DatabaseError::from)
+        Ok(items)
     }
 
     #[instrument(skip(connection))]
-    pub fn find_by_id(connection: &mut DatabaseConnection, id: i64) -> Result<Self, DatabaseError> {
-        use crate::schema::file_version::dsl;
+    pub async fn find_ready_by_id(
+        connection: &mut SqliteConnection,
+        id: i64,
+    ) -> Result<Option<Self>, DatabaseError> {
+        let item = sqlx::query_as!(
+            Self,
+            "SELECT * FROM file_version WHERE id = ? AND state = ?",
+            id,
+            FileVersionState::Ready
+        )
+        .fetch_optional(connection)
+        .await?;
 
-        dsl::file_version
-            .find(id)
-            .select(Self::as_select())
-            .first(connection)
-            .map_err(DatabaseError::from)
+        Ok(item)
     }
 
     #[instrument(skip(connection))]
-    pub fn find_by_version_optional(
-        connection: &mut DatabaseConnection,
+    pub async fn find_ready_by_file_id_and_version(
+        connection: &mut SqliteConnection,
         file_id: &i64,
         version: &str,
     ) -> Result<Option<Self>, DatabaseError> {
-        use crate::schema::file_version::dsl;
+        let item = sqlx::query_as!(
+            Self,
+            "SELECT * FROM file_version WHERE file_id = ? AND version = ? AND state = ?",
+            file_id,
+            version,
+            FileVersionState::Ready,
+        )
+        .fetch_optional(connection)
+        .await?;
 
-        dsl::file_version
-            .filter(dsl::file_id.eq(file_id).and(dsl::version.eq(version)))
-            .select(Self::as_select())
-            .first(connection)
-            .optional()
-            .map_err(DatabaseError::from)
+        Ok(item)
     }
 }
 
 impl FileVersion {
     #[instrument(skip(connection))]
-    pub fn path(
+    pub async fn path(
         &self,
-        connection: &mut DatabaseConnection,
+        connection: &mut SqliteConnection,
     ) -> Result<FileVersionPathParts, DatabaseError> {
-        use crate::schema::dir::dsl as d_dsl;
-        use crate::schema::file::dsl as f_dsl;
-
-        let (dir, file) = f_dsl::file
-            .find(self.file_id)
-            .inner_join(d_dsl::dir)
-            .select((d_dsl::name, f_dsl::name))
-            .get_result::<(String, String)>(connection)?;
+        let item = sqlx::query!(
+            r#"
+                SELECT
+                    f.dir_id dir,
+                    f.id file,
+                    fv.version
+                FROM
+                    file_version fv
+                    INNER JOIN file f ON f.id = fv.file_id
+                WHERE fv.id = ?1"#,
+            self.id,
+        )
+        .fetch_one(connection)
+        .await?;
 
         Ok(FileVersionPathParts {
-            dir,
-            file,
-            version: self.version.to_owned(),
+            dir: item.dir.to_string(),
+            file: item.file.to_string(),
+            version: item.version,
         })
     }
 
     #[instrument(skip(connection))]
-    pub fn update_state(
+    pub async fn update_state(
         &mut self,
-        connection: &mut DatabaseConnection,
+        connection: &mut SqliteConnection,
         state: FileVersionState,
     ) -> Result<(), DatabaseError> {
-        use crate::schema::file_version::dsl;
-
-        update(&*self)
-            .set(dsl::state.eq(state))
-            .execute(connection)?;
+        sqlx::query!(
+            "UPDATE file_version SET state = ?2 WHERE id = ?1",
+            self.id,
+            state,
+        )
+        .execute(connection)
+        .await?;
 
         self.state = state;
 
@@ -124,14 +127,16 @@ impl FileVersion {
     }
 
     #[instrument(skip(connection))]
-    pub fn delete(&mut self, connection: &mut DatabaseConnection) -> Result<(), DatabaseError> {
-        use crate::schema::file_version::dsl;
-
+    pub async fn delete(&mut self, connection: &mut SqliteConnection) -> Result<(), DatabaseError> {
         let deleted_at = Utc::now().naive_utc();
 
-        update(&*self)
-            .set(dsl::deleted_at.eq(deleted_at))
-            .execute(connection)?;
+        sqlx::query!(
+            "UPDATE file_version SET deleted_at = ?2 WHERE id = ?1",
+            self.id,
+            deleted_at,
+        )
+        .execute(connection)
+        .await?;
 
         self.deleted_at = Some(deleted_at);
 
@@ -139,20 +144,36 @@ impl FileVersion {
     }
 
     #[instrument(skip(connection))]
-    pub fn unsafe_delete(&self, connection: &mut DatabaseConnection) -> Result<(), DatabaseError> {
-        if self.state == FileVersionState::Ready {
+    pub async fn unsafe_delete(
+        &self,
+        connection: &mut SqliteConnection,
+    ) -> Result<(), DatabaseError> {
+        if matches!(self.state, FileVersionState::Ready) {
             return DatabaseError::PreconditionError(
-                "Versions with ready state cannot be deleted".to_string(),
+                "Versions in ready state cannot be deleted".to_string(),
             )
             .err();
         }
 
-        connection.transaction::<_, DatabaseError, _>(|tx| {
-            delete(FileVersionTag::belonging_to(self)).execute(tx)?;
+        let fv_id = self.id;
 
-            delete(self).execute(tx)?;
+        connection
+            .transaction(|tx| {
+                Box::pin(async move {
+                    sqlx::query!(
+                        "DELETE FROM file_version_tag WHERE file_version_id = ?1",
+                        fv_id,
+                    )
+                    .execute(&mut **tx)
+                    .await?;
 
-            Ok(())
-        })
+                    sqlx::query!("DELETE FROM file_version WHERE id = ?1", fv_id)
+                        .execute(&mut **tx)
+                        .await?;
+
+                    Ok(())
+                })
+            })
+            .await
     }
 }
