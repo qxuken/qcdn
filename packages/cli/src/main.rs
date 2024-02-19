@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::io::{Error, IsTerminal};
+use std::io::Error;
 
 mod cli;
 mod constants;
@@ -7,18 +7,14 @@ mod constants;
 fn main() -> color_eyre::Result<()> {
     dotenvy::dotenv().ok();
 
-    color_eyre::config::HookBuilder::default()
-        .theme(if !std::io::stderr().is_terminal() {
-            // Don't attempt color
-            color_eyre::config::Theme::new()
-        } else {
-            color_eyre::config::Theme::dark()
-        })
-        .install()?;
+    qcdn_utils::setup_color_eyre()?;
 
     let cli = cli::Cli::parse();
-    cli.instrumentation
-        .setup(&[constants::PACKAGE_NAME, qcdn_proto_client::PACKAGE_NAME])?;
+    cli.instrumentation.setup(&[
+        constants::PACKAGE_NAME,
+        qcdn_utils::PACKAGE_NAME,
+        qcdn_proto_client::PACKAGE_NAME,
+    ])?;
 
     tracing::info!("log_level: {}", cli.instrumentation.log_level());
     tracing::info!("{cli:#?}");

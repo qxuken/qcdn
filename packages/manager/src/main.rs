@@ -1,6 +1,5 @@
 use clap::Parser;
 use color_eyre::eyre::OptionExt;
-use std::io::IsTerminal;
 use tonic::transport::Server;
 
 use qcdn_proto_server::qcdn_general_server::QcdnGeneralServer;
@@ -16,18 +15,12 @@ mod general;
 async fn main() -> color_eyre::Result<()> {
     dotenvy::dotenv().ok();
 
-    color_eyre::config::HookBuilder::default()
-        .theme(if !std::io::stderr().is_terminal() {
-            // Don't attempt color
-            color_eyre::config::Theme::new()
-        } else {
-            color_eyre::config::Theme::dark()
-        })
-        .install()?;
+    qcdn_utils::setup_color_eyre()?;
 
     let cli = cli::Cli::parse();
     cli.instrumentation.setup(&[
         constants::PACKAGE_NAME,
+        qcdn_utils::PACKAGE_NAME,
         qcdn_proto_server::PACKAGE_NAME,
         qcdn_database::PACKAGE_NAME,
         qcdn_storage::PACKAGE_NAME,

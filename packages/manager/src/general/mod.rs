@@ -1,3 +1,4 @@
+use chrono::{DateTime, NaiveDateTime, Utc};
 use std::time::SystemTime;
 
 use qcdn_proto_server::{
@@ -6,6 +7,8 @@ use qcdn_proto_server::{
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
+const DATETIME_FORMAT: &str = "%d/%m/%Y %T:%f";
+
 #[derive(Debug, Default)]
 pub struct GeneralService {}
 
@@ -13,14 +16,24 @@ pub struct GeneralService {}
 impl QcdnGeneral for GeneralService {
     #[instrument(skip(self))]
     async fn ping(&self, request: Request<PingMessage>) -> Result<Response<PingMessage>, Status> {
-        let ts = SystemTime::now();
+        let now = SystemTime::now();
+        let now_datetime: DateTime<Utc> = now.into();
+        let from = request
+            .into_inner()
+            .timestamp
+            .and_then(|t| {
+                NaiveDateTime::from_timestamp_opt(t.seconds, u32::try_from(t.nanos).unwrap_or(0))
+            })
+            .map(|d| d.format(DATETIME_FORMAT).to_string())
+            .unwrap_or_else(|| "Unknown".to_string());
         tracing::info!(
-            "Ping request from {:?} at {ts:?}",
-            request.into_inner().timestamp,
+            "Ping request from {} at {}",
+            from,
+            now_datetime.format(DATETIME_FORMAT)
         );
 
         let reply = PingMessage {
-            timestamp: Some(ts.into()),
+            timestamp: Some(now.into()),
         };
         Ok(Response::new(reply))
     }

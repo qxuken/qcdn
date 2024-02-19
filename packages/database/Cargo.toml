@@ -10,7 +10,7 @@ publish = false
 color-eyre.workspace = true
 tracing.workspace = true
 serde.workspace = true
-chrono = { version = "0.4.34", features = ["serde"] }
+chrono.workspace = true
 diesel = { version = "2.1.4", default-features = false, features = [
   "extras",
   "sqlite",
