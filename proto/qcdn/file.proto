@@ -2,17 +2,20 @@ syntax = "proto3";
 
 import "google/protobuf/empty.proto";
 
-package qcdn.files;
+package qcdn.file;
 
-service QcdnFiles {
+service QcdnFileQueries {
 	rpc GetDirs(google.protobuf.Empty) returns (GetDirsResponse);
 	rpc GetDir(GetDirRequest) returns (GetDirResponse);
 	rpc GetFiles(GetFilesRequest) returns (GetFilesResponse);
 	rpc GetFile(GetFileRequest) returns (GetFileResponse);
 	rpc GetFileVersions(GetFileVersionsRequest) returns (GetFileVersionsResponse);
 	rpc GetFileVersion(GetFileVersionRequest) returns (GetFileVersionResponse);
-	rpc Upload(stream UploadRequest) returns (UploadResponse);
 	rpc Download(DownloadRequest) returns (stream FilePart);
+}
+
+service QcdnFileUpdates {
+	rpc Upload(stream UploadRequest) returns (UploadResponse);
 	rpc TagVersion(TagVersionRequest) returns (google.protobuf.Empty);
 	rpc DeleteFileVersion(DeleteFileVersionRequest) returns (google.protobuf.Empty);
 }

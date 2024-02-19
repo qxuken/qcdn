@@ -1,14 +1,12 @@
 [package]
-name = "qcdn_cli"
+name = "qcdn_storage"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-qcdn_tracing_setup = { path = "../tracing_setup" }
-qcdn_proto_client = { path = "../proto_client" }
-clap.workspace = true
-dotenvy.workspace = true
 color-eyre.workspace = true
+tokio.workspace = true
 tracing.workspace = true

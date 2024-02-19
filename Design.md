@@ -69,9 +69,6 @@ An almost immutable storage solution with replication __**(later)**__.
 
 ## Config
 
-- `db_path` - path to sqlite db e.g. `data/qcdn.db`
-- `storage_dir` - path to storage dir e.g. `data/storage`
-- `base_url` - base url e.g. `http://localhost:8080`
-- `host` - local interface address e.g. `127.0.0.1`
-- `port` - tcp port e.g. `8080`
-- `log_level` - debug, info, warn, error
+- `data` - path to data dir e.g. `data`
+- `bind` - bind ip address e.g. `0.0.0.0:8080`
+- `...logger`
