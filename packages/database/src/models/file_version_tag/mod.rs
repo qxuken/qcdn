@@ -1,12 +1,12 @@
 use chrono::{NaiveDateTime, Utc};
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
-use sqlx::SqliteConnection;
 use tracing::instrument;
+
+use crate::{DatabaseConnection, DatabaseError};
 
 pub use file_version_tag_upsert::FileVersionTagUpsert;
 
-use crate::DatabaseError;
 
 mod file_version_tag_upsert;
 
@@ -22,7 +22,7 @@ pub struct FileVersionTag {
 impl FileVersionTag {
     #[instrument(skip(connection))]
     pub async fn find_by_file_version(
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
         file_version_id: &i64,
     ) -> Result<Vec<Self>, DatabaseError> {
         let items = sqlx::query_as!(
@@ -38,7 +38,7 @@ impl FileVersionTag {
 
     #[instrument(skip(connection))]
     pub async fn find_by_version_and_name(
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
         file_version_id: &i64,
         name: &str,
     ) -> Result<Option<Self>, DatabaseError> {
@@ -59,7 +59,7 @@ impl FileVersionTag {
     #[instrument(skip(connection))]
     pub async fn move_to_version(
         &mut self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
         file_version_id: &i64,
     ) -> Result<(), DatabaseError> {
         let now = Utc::now().naive_utc();

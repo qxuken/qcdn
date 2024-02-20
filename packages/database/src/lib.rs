@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 use std::path::PathBuf;
 use tracing::instrument;
 
@@ -15,7 +15,8 @@ pub mod models;
 
 static MIGRATOR: Migrator = sqlx::migrate!("../../migrations");
 
-pub type DatabaseConnection = sqlx::pool::PoolConnection<sqlx::Sqlite>;
+pub type DatabaseConnection = SqliteConnection;
+pub type DatabasePoolConnection = sqlx::pool::PoolConnection<sqlx::Sqlite>;
 
 #[derive(Debug, Clone)]
 pub struct Database(SqlitePool);
@@ -30,7 +31,8 @@ impl Database {
                 .create_if_missing(true),
         )
         .await
-        .map(Self)?;
+        .map(Self)
+        .map_err(|e| DatabaseError::PoolSetupError(e.to_string()))?;
         tracing::info!("Created database pool");
         tracing::trace!("{res:#?}");
         Ok(res)
@@ -44,16 +46,23 @@ impl Database {
     }
 
     #[instrument(skip(self))]
-    pub async fn establish_connection(&self) -> Result<DatabaseConnection, DatabaseError> {
+    pub async fn establish_connection(&self) -> Result<DatabasePoolConnection, DatabaseError> {
         tracing::trace!("Establishing database connection");
-        let connection = self.0.acquire().await?;
+        let connection = self
+            .0
+            .acquire()
+            .await
+            .map_err(|e| DatabaseError::PoolConnectionError(e.to_string()))?;
         Ok(connection)
     }
 
-    pub async fn run_migrations(self) -> Result<Self> {
+    pub async fn run_migrations(&self) -> Result<()> {
         tracing::debug!("Running migrations");
-        MIGRATOR.run(&self.0).await?;
+        MIGRATOR
+            .run(&self.0)
+            .await
+            .map_err(|e| DatabaseError::MigrationError(e.to_string()))?;
         tracing::info!("Database migrated");
-        Ok(self)
+        Ok(())
     }
 }

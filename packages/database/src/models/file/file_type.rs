@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, sqlx::Type, Serialize, Deserialize)]
+#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone, Copy)]
 #[repr(i64)]
 pub enum FileType {
     Other,
@@ -9,7 +9,6 @@ pub enum FileType {
     Image,
     Font,
     Text,
-    Unknown = -1,
 }
 
 impl From<i64> for FileType {
@@ -21,7 +20,7 @@ impl From<i64> for FileType {
             3 => FileType::Image,
             4 => FileType::Font,
             5 => FileType::Text,
-            _ => FileType::Unknown,
+            _ => FileType::Other,
         }
     }
 }

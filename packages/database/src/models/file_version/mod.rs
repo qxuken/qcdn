@@ -1,20 +1,22 @@
 use chrono::{NaiveDateTime, Utc};
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
-use sqlx::{Connection, SqliteConnection};
+use sqlx::Connection;
 use tracing::instrument;
 
 pub use file_version_path_parts::FileVersionPathParts;
 pub use file_version_state::FileVersionState;
+pub use file_version_with_tags::FileVersionWithTags;
 pub use new_file_version::NewFileVersion;
 
-use crate::DatabaseError;
+use crate::{DatabaseConnection, DatabaseError};
 
 mod file_version_path_parts;
 mod file_version_state;
+mod file_version_with_tags;
 mod new_file_version;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FileVersion {
     pub id: i64,
     pub file_id: i64,
@@ -28,8 +30,8 @@ pub struct FileVersion {
 impl FileVersion {
     #[instrument(skip(connection))]
     pub async fn find_by_file_id(
-        connection: &mut SqliteConnection,
-        file_id: i64,
+        connection: &mut DatabaseConnection,
+        file_id: &i64,
     ) -> Result<Vec<Self>, DatabaseError> {
         let items = sqlx::query_as!(
             Self,
@@ -43,25 +45,20 @@ impl FileVersion {
     }
 
     #[instrument(skip(connection))]
-    pub async fn find_ready_by_id(
-        connection: &mut SqliteConnection,
-        id: i64,
-    ) -> Result<Option<Self>, DatabaseError> {
-        let item = sqlx::query_as!(
-            Self,
-            "SELECT * FROM file_version WHERE id = ? AND state = ?",
-            id,
-            FileVersionState::Ready
-        )
-        .fetch_optional(connection)
-        .await?;
+    pub async fn find_by_id(
+        connection: &mut DatabaseConnection,
+        id: &i64,
+    ) -> Result<Self, DatabaseError> {
+        let item = sqlx::query_as!(Self, "SELECT * FROM file_version WHERE id = ?", id)
+            .fetch_one(connection)
+            .await?;
 
         Ok(item)
     }
 
     #[instrument(skip(connection))]
-    pub async fn find_ready_by_file_id_and_version(
-        connection: &mut SqliteConnection,
+    pub async fn find_ready_by_file_id_and_version_optional(
+        connection: &mut DatabaseConnection,
         file_id: &i64,
         version: &str,
     ) -> Result<Option<Self>, DatabaseError> {
@@ -83,7 +80,7 @@ impl FileVersion {
     #[instrument(skip(connection))]
     pub async fn path(
         &self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
     ) -> Result<FileVersionPathParts, DatabaseError> {
         let item = sqlx::query!(
             r#"
@@ -110,7 +107,7 @@ impl FileVersion {
     #[instrument(skip(connection))]
     pub async fn update_state(
         &mut self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
         state: FileVersionState,
     ) -> Result<(), DatabaseError> {
         sqlx::query!(
@@ -127,7 +124,10 @@ impl FileVersion {
     }
 
     #[instrument(skip(connection))]
-    pub async fn delete(&mut self, connection: &mut SqliteConnection) -> Result<(), DatabaseError> {
+    pub async fn delete(
+        &mut self,
+        connection: &mut DatabaseConnection,
+    ) -> Result<(), DatabaseError> {
         let deleted_at = Utc::now().naive_utc();
 
         sqlx::query!(
@@ -146,7 +146,7 @@ impl FileVersion {
     #[instrument(skip(connection))]
     pub async fn unsafe_delete(
         &self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
     ) -> Result<(), DatabaseError> {
         if matches!(self.state, FileVersionState::Ready) {
             return DatabaseError::PreconditionError(

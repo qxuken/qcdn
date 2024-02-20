@@ -23,7 +23,6 @@ impl From<FileType> for GrpcFileType {
             FileType::Image => Self::Image,
             FileType::Font => Self::Font,
             FileType::Text => Self::Text,
-            FileType::Unknown => Self::Other,
         }
     }
 }

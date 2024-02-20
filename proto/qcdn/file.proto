@@ -43,7 +43,7 @@ message GetDirsResponse {
 }
 
 message GetFilesRequest {
-	optional string dir_id = 1;
+	int64 dir_id = 1;
 }
 
 message GetFileRequest {
@@ -52,7 +52,7 @@ message GetFileRequest {
 
 message GetFileResponse {
 	int64 id = 1;
-	string dir_id = 2;
+	int64 dir_id = 2;
 	string name = 3;
 	FileType file_type = 4;
 }

@@ -1,10 +1,9 @@
 use chrono::{NaiveDateTime, Utc};
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
-use sqlx::SqliteConnection;
 use tracing::instrument;
 
-use crate::DatabaseError;
+use crate::{DatabaseConnection, DatabaseError};
 
 use super::{FileVersion, FileVersionState};
 
@@ -21,11 +20,15 @@ impl NewFileVersion {
     #[instrument(skip(connection))]
     pub async fn create(
         self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
     ) -> Result<FileVersion, DatabaseError> {
-        if FileVersion::find_ready_by_file_id_and_version(connection, &self.file_id, &self.version)
-            .await?
-            .is_some()
+        if FileVersion::find_ready_by_file_id_and_version_optional(
+            connection,
+            &self.file_id,
+            &self.version,
+        )
+        .await?
+        .is_some()
         {
             return DatabaseError::PreconditionError("Version is already exists".to_string()).err();
         }

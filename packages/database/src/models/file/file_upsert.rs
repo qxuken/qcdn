@@ -1,10 +1,9 @@
 use chrono::{NaiveDateTime, Utc};
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
-use sqlx::SqliteConnection;
 use tracing::instrument;
 
-use crate::DatabaseError;
+use crate::{DatabaseConnection, DatabaseError};
 
 use super::{File, FileType};
 
@@ -18,7 +17,7 @@ pub struct FileUpsert {
 
 impl FileUpsert {
     #[instrument(skip(connection))]
-    async fn create(self, connection: &mut SqliteConnection) -> Result<File, DatabaseError> {
+    async fn create(self, connection: &mut DatabaseConnection) -> Result<File, DatabaseError> {
         let created_at = self.created_at.unwrap_or_else(|| Utc::now().naive_utc());
 
         let item = sqlx::query_as!(
@@ -42,9 +41,11 @@ impl FileUpsert {
     #[instrument(skip(connection))]
     pub async fn find_by_name_or_create(
         self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
     ) -> Result<File, DatabaseError> {
-        let item = match File::find_by_dir_and_name(connection, &self.dir_id, &self.name).await? {
+        let item = match File::find_by_dir_and_name_optional(connection, &self.dir_id, &self.name)
+            .await?
+        {
             Some(id) => id,
             None => self.create(connection).await?,
         };

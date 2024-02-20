@@ -1,5 +1,5 @@
 [package]
-name = "qcdn_manager"
+name = "qcdn_leader"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -18,6 +18,8 @@ color-eyre.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
+tokio-util.workspace = true
 tonic.workspace = true
 chrono.workspace = true
 async-channel = "2.2.0"
+futures = "0.3.30"

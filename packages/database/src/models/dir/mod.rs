@@ -1,16 +1,15 @@
 use chrono::NaiveDateTime;
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
-use sqlx::SqliteConnection;
 use tracing::instrument;
 
 pub use dir_upsert::DirUpsert;
 
-use crate::DatabaseError;
+use crate::{DatabaseConnection, DatabaseError};
 
 mod dir_upsert;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Dir {
     pub id: i64,
     pub name: String,
@@ -19,7 +18,7 @@ pub struct Dir {
 
 impl Dir {
     #[instrument(skip(connection))]
-    pub async fn get_all(connection: &mut SqliteConnection) -> Result<Vec<Self>, DatabaseError> {
+    pub async fn get_all(connection: &mut DatabaseConnection) -> Result<Vec<Self>, DatabaseError> {
         let items = sqlx::query_as!(Self, "SELECT * FROM dir")
             .fetch_all(connection)
             .await?;
@@ -29,19 +28,19 @@ impl Dir {
 
     #[instrument(skip(connection))]
     pub async fn find_by_id(
-        connection: &mut SqliteConnection,
-        id: i64,
-    ) -> Result<Option<Self>, DatabaseError> {
+        connection: &mut DatabaseConnection,
+        id: &i64,
+    ) -> Result<Self, DatabaseError> {
         let item = sqlx::query_as!(Self, "SELECT * FROM dir WHERE id = ?", id)
-            .fetch_optional(connection)
+            .fetch_one(connection)
             .await?;
 
         Ok(item)
     }
 
     #[instrument(skip(connection))]
-    pub async fn find_by_name(
-        connection: &mut SqliteConnection,
+    pub async fn find_by_name_optional(
+        connection: &mut DatabaseConnection,
         name: &str,
     ) -> Result<Option<Self>, DatabaseError> {
         let item = sqlx::query_as!(Self, "SELECT * FROM dir WHERE name = ?", name)
@@ -56,7 +55,7 @@ impl Dir {
     #[instrument(skip(connection))]
     pub async fn delete_if_no_files_exists(
         &self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
     ) -> Result<(), DatabaseError> {
         sqlx::query!(
             r#"

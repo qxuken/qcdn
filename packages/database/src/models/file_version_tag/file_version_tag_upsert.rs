@@ -1,10 +1,9 @@
 use chrono::{NaiveDateTime, Utc};
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
-use sqlx::SqliteConnection;
 use tracing::instrument;
 
-use crate::DatabaseError;
+use crate::{DatabaseConnection, DatabaseError};
 
 use super::FileVersionTag;
 
@@ -19,7 +18,7 @@ impl FileVersionTagUpsert {
     #[instrument(skip(connection))]
     async fn create(
         self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
     ) -> Result<FileVersionTag, DatabaseError> {
         let created_at = self.created_at.unwrap_or_else(|| Utc::now().naive_utc());
 
@@ -43,7 +42,7 @@ impl FileVersionTagUpsert {
     #[instrument(skip(connection))]
     pub async fn create_or_move(
         self,
-        connection: &mut SqliteConnection,
+        connection: &mut DatabaseConnection,
     ) -> Result<FileVersionTag, DatabaseError> {
         let item = match FileVersionTag::find_by_version_and_name(
             connection,

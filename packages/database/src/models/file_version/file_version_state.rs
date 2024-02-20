@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, sqlx::Type, Serialize, Deserialize)]
+#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone, Copy)]
 #[repr(i64)]
 pub enum FileVersionState {
     Created,

@@ -6,6 +6,9 @@ publish = false
 
 [dependencies]
 qcdn_database = { path = "../database" }
+color-eyre.workspace = true
+tracing.workspace = true
+tokio.workspace = true
 tonic.workspace = true
 tonic-build.workspace = true
 tonic-types.workspace = true
