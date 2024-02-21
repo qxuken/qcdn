@@ -85,7 +85,7 @@ impl FileUploadRequested {
                 .map(Mutex::new)
                 .map(Arc::new)?;
             tracing::trace!("Created file version");
-            tracing::trace!("{file_version:?}");
+            tracing::trace!("{:?}", file_version.lock().await);
 
             cleanup_file_version = Some(file_version.clone());
 

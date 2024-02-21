@@ -57,14 +57,14 @@ impl FileVersion {
     }
 
     #[instrument(skip(connection))]
-    pub async fn find_ready_by_file_id_and_version_optional(
+    pub async fn find_ready(
         connection: &mut DatabaseConnection,
         file_id: &i64,
         version: &str,
     ) -> Result<Option<Self>, DatabaseError> {
         let item = sqlx::query_as!(
             Self,
-            "SELECT * FROM file_version WHERE file_id = ? AND version = ? AND state = ?",
+            "SELECT * FROM file_version WHERE file_id = ? AND version = ? AND state = ? AND deleted_at IS NULL",
             file_id,
             version,
             FileVersionState::Ready,
@@ -87,7 +87,7 @@ impl FileVersion {
                 SELECT
                     f.dir_id dir,
                     f.id file,
-                    fv.version
+                    fv.id version
                 FROM
                     file_version fv
                     INNER JOIN file f ON f.id = fv.file_id
@@ -100,7 +100,7 @@ impl FileVersion {
         Ok(FileVersionPathParts {
             dir: item.dir.to_string(),
             file: item.file.to_string(),
-            version: item.version,
+            version: item.version.to_string(),
         })
     }
 

@@ -41,6 +41,7 @@ impl From<FileVersionWithTagsRaw> for FileVersionWithTags {
                 .tags
                 .unwrap_or_default()
                 .split(',')
+                .filter(|s| !s.is_empty())
                 .map(|s| s.to_string())
                 .collect(),
             created_at: value.created_at,

@@ -14,27 +14,34 @@ pub use constants::*;
 mod constants;
 
 #[derive(Debug, Clone)]
-pub struct Storage(Arc<PathBuf>);
+pub struct Storage {
+    root: Arc<PathBuf>,
+    subdir: Arc<PathBuf>,
+}
 
 impl Storage {
     #[instrument]
-    pub async fn try_from_path(path: &Path) -> Result<Self> {
+    pub async fn try_from_path(path: &Path, subdir: &'static str) -> Result<Self> {
         tracing::trace!("Creating storage");
         let dir = if path.is_absolute() {
             path.into()
         } else {
             env::current_dir()?.join(path)
         };
-        tracing::trace!("Checking if {:?} exists", dir);
-        if !dir.exists() {
-            tracing::debug!("Creating {:?}", dir);
-            fs::create_dir(&dir).await?;
+        let target = dir.join(subdir);
+        tracing::trace!("Checking if {:?} exists", target);
+        if !target.exists() {
+            tracing::debug!("Creating {:?}", target);
+            fs::create_dir_all(&target).await?;
         }
-        if !dir.is_dir() {
-            return Err(eyre!(format!("{dir:?} is not a directory")));
+        if !target.is_dir() {
+            return Err(eyre!(format!("{target:?} is not a directory")));
         }
 
-        let storage = Self(Arc::new(dir.to_path_buf()));
+        let storage = Self {
+            root: Arc::new(dir.to_path_buf()),
+            subdir: Arc::new(target),
+        };
         tracing::info!("Created storage");
         tracing::trace!("{:?}", storage);
         Ok(storage)
@@ -43,15 +50,20 @@ impl Storage {
 
 impl Storage {
     #[instrument(skip(self))]
-    pub fn get_path(&self, relative_path: &str) -> PathBuf {
-        let path = self.0.clone().join(relative_path);
+    pub fn get_path(&self, relative_path: &str, from_root: bool) -> PathBuf {
+        let dir = if from_root {
+            self.root.clone()
+        } else {
+            self.subdir.clone()
+        };
+        let path = dir.join(relative_path);
         tracing::trace!("Storage path {path:?}");
         path
     }
 
     #[instrument(skip(self))]
     pub async fn open_file(&self, dir: &str, filename: &str) -> Result<fs::File> {
-        let path = self.0.clone().join(dir).join(filename);
+        let path = self.subdir.clone().join(dir).join(filename);
         tracing::trace!("Opening file {path:?}");
 
         Ok(fs::File::open(path).await?)
@@ -59,7 +71,7 @@ impl Storage {
 
     #[instrument(skip(self))]
     pub async fn create_file(&self, dir: &str, filename: &str) -> Result<fs::File> {
-        let dir_path = self.0.clone().join(dir);
+        let dir_path = self.subdir.clone().join(dir);
         tracing::trace!("Checking directory {dir_path:?}");
         if fs::read_dir(&dir_path).await.is_err() {
             tracing::trace!("Creating directory {dir_path:?}");
@@ -72,7 +84,7 @@ impl Storage {
 
     #[instrument(skip(self))]
     pub async fn remove_file(&self, dir: &str, filename: &str) -> Result<()> {
-        let file_path = self.0.clone().join(dir).join(filename);
+        let file_path = self.subdir.clone().join(dir).join(filename);
         if !file_path.is_file() {
             return Err(Report::msg(format!("{file_path:?} is not a file")));
         }

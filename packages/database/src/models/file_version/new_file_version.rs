@@ -22,13 +22,9 @@ impl NewFileVersion {
         self,
         connection: &mut DatabaseConnection,
     ) -> Result<FileVersion, DatabaseError> {
-        if FileVersion::find_ready_by_file_id_and_version_optional(
-            connection,
-            &self.file_id,
-            &self.version,
-        )
-        .await?
-        .is_some()
+        if FileVersion::find_ready(connection, &self.file_id, &self.version)
+            .await?
+            .is_some()
         {
             return DatabaseError::PreconditionError("Version is already exists".to_string()).err();
         }
