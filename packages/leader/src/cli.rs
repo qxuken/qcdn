@@ -9,7 +9,7 @@ use clap::Parser;
 pub(crate) struct Cli {
     /// Path to data dir
     #[arg(short, long, env = "QCDN_STORAGE_DIR", default_value = "data")]
-    pub data: PathBuf,
+    pub(crate) data: PathBuf,
 
     /// Bind ip address
     #[clap(short, long, env = "QCDN_BIND", default_value_t = SocketAddr::new(
