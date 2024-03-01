@@ -13,7 +13,7 @@ use tonic::Request;
 use crate::cli::Cli;
 
 #[tracing::instrument]
-pub(crate) async fn upload(cli: &Cli, version: &str, save_version: &bool) -> Result<()> {
+pub async fn upload(cli: &Cli, version: &str, save_version: bool) -> Result<()> {
     tracing::info!("Connecting");
     let mut general = QcdnGeneralClient::connect(cli.url.clone()).await?;
 
@@ -55,7 +55,7 @@ pub(crate) async fn upload(cli: &Cli, version: &str, save_version: &bool) -> Res
         }
     }
 
-    let test_file: &[u8] = include_bytes!("../../../data/input/test.txt");
+    let test_file: &[u8] = include_bytes!("../../../../data/input/test.txt");
     let init_message = upload_request::Request::Meta(UploadMeta {
         name: "test".to_string(),
         dir: "test".to_string(),

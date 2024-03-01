@@ -10,8 +10,6 @@ use ratatui::{
 };
 use std::{io::stdout, time::Duration};
 
-use crate::cli::Cli;
-
 #[derive(Debug, Default)]
 struct State {
     key_event: Option<KeyEvent>,
@@ -97,7 +95,7 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn ui(_cli: &Cli) -> Result<()> {
+pub async fn ui() -> Result<()> {
     startup()?;
     let status = run();
     shutdown()?;

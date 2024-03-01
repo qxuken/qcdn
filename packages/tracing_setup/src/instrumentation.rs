@@ -13,7 +13,7 @@ use tracing_subscriber::{
 
 use super::logger::Logger;
 
-#[derive(clap::Args, Debug, Default)]
+#[derive(clap::Args, Debug, Default, Clone)]
 pub struct Instrumentation {
     /// Enable debug logs, -vv for trace
     #[clap(

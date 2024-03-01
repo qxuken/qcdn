@@ -1,10 +1,13 @@
 use clap::Parser;
 use color_eyre::Result;
+use rpc::Rpc;
 
-pub(crate) mod cli;
+pub mod cli;
+mod commands;
 pub mod constants;
-mod ui;
-mod upload;
+mod rpc;
+mod tui;
+pub mod utils;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -19,12 +22,20 @@ async fn main() -> Result<()> {
         qcdn_proto_client::PACKAGE_NAME,
     ])?;
 
-    match &cli.command {
-        cli::Command::Ui => ui::ui(&cli).await,
+    let rpc: Rpc = (&cli).into();
+
+    match cli.command.clone().unwrap_or_default() {
+        cli::Command::Ui => tui::ui().await,
+        cli::Command::Connect => commands::handshake_server::handshake_server(&rpc).await,
+        cli::Command::Dirs => commands::list_dirs::list_dirs(&rpc).await,
+        cli::Command::Files { dir_id } => commands::list_files::list_files(&rpc, dir_id).await,
+        cli::Command::Versions { file_id } => {
+            commands::list_versions::list_versions(&rpc, file_id).await
+        }
         cli::Command::Upload {
             version,
             save_version,
-        } => upload::upload(&cli, version, save_version).await,
+        } => commands::upload::upload(&cli, &version, save_version).await,
     }?;
 
     Ok(())
