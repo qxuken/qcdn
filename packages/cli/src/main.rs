@@ -27,10 +27,12 @@ async fn main() -> Result<()> {
     match cli.command.clone().unwrap_or_default() {
         cli::Command::Ui => tui::ui().await,
         cli::Command::Connect => commands::handshake_server::handshake_server(&rpc).await,
-        cli::Command::Dirs => commands::list_dirs::list_dirs(&rpc).await,
-        cli::Command::Files { dir_id } => commands::list_files::list_files(&rpc, dir_id).await,
-        cli::Command::Versions { file_id } => {
-            commands::list_versions::list_versions(&rpc, file_id).await
+        cli::Command::Dirs { format } => commands::list_dirs::list_dirs(&rpc, format).await,
+        cli::Command::Files { dir_id, format } => {
+            commands::list_files::list_files(&rpc, dir_id, format).await
+        }
+        cli::Command::Versions { file_id, format } => {
+            commands::list_versions::list_versions(&rpc, file_id, format).await
         }
         cli::Command::Upload {
             version,

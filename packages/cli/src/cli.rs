@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 
+use crate::utils::std_table::Format;
+
 #[derive(Debug, Parser, Clone)]
 pub struct Cli {
     /// Manager url
@@ -23,18 +25,30 @@ pub enum Command {
     Connect,
 
     /// List all directories
-    Dirs,
+    Dirs {
+        /// Format of data output
+        #[arg(long, default_value_t = Default::default(), global = true)]
+        format: Format,
+    },
 
     /// List all files in directory
     Files {
         /// Directory id
         dir_id: i64,
+
+        /// Format of data output
+        #[arg(long, default_value_t = Default::default(), global = true)]
+        format: Format,
     },
 
     /// List all file versions
     Versions {
         /// File id
         file_id: i64,
+
+        /// Format of data output
+        #[arg(long, default_value_t = Default::default(), global = true)]
+        format: Format,
     },
 
     /// simple file upload

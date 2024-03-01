@@ -1,9 +1,11 @@
 use color_eyre::Result;
 
-use crate::rpc::Rpc;
+use crate::{cli::Cli, rpc::Rpc};
 
 #[tracing::instrument(skip_all)]
-pub async fn handshake_server(rpc: &Rpc) -> Result<()> {
+pub async fn handshake_server(cli: &Cli) -> Result<()> {
+    let rpc: Rpc = cli.into();
+
     let client_version = Rpc::client_version();
     let general = rpc.connect_to_general().await?;
     let (latency, server_version) = tokio::try_join!(
