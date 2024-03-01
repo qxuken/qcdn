@@ -5,13 +5,13 @@ use tracing::instrument;
 
 use crate::{DatabaseConnection, DatabaseError};
 
-use super::{File, FileType};
+use super::File;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FileUpsert {
     pub dir_id: i64,
     pub name: String,
-    pub file_type: FileType,
+    pub media_type: String,
     pub created_at: Option<NaiveDateTime>,
 }
 
@@ -23,13 +23,13 @@ impl FileUpsert {
         let item = sqlx::query_as!(
             File,
             r#"
-                INSERT INTO file(dir_id, name, file_type, created_at)
+                INSERT INTO file(dir_id, name, media_type, created_at)
                 VALUES (?, ?, ?, ?)
                 RETURNING *
             "#,
             self.dir_id,
             self.name,
-            self.file_type,
+            self.media_type,
             created_at,
         )
         .fetch_one(connection)

@@ -3,12 +3,10 @@ use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-pub use file_type::FileType;
 pub use file_upsert::FileUpsert;
 
 use crate::{DatabaseConnection, DatabaseError};
 
-mod file_type;
 mod file_upsert;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -16,7 +14,7 @@ pub struct File {
     pub id: i64,
     pub dir_id: i64,
     pub name: String,
-    pub file_type: FileType,
+    pub media_type: String,
     pub created_at: NaiveDateTime,
 }
 

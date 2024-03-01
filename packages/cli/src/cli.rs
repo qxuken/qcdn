@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 
 use crate::utils::std_table::Format;
@@ -17,11 +19,8 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand, Default, Clone)]
 pub enum Command {
-    /// Launch ui [default]
+    /// Test connection to server [default]
     #[default]
-    Ui,
-
-    /// Test connection to server
     Connect,
 
     /// List all directories
@@ -51,14 +50,47 @@ pub enum Command {
         format: Format,
     },
 
-    /// simple file upload
+    /// Download file version
+    Download {
+        /// File version id
+        file_version_id: i64,
+
+        /// Destination file.
+        /// Otherwise data will be converted to utf-8 and printed to stdin
+        path: Option<PathBuf>,
+    },
+
+    /// File upload
     Upload {
+        /// Manually tag file type
+        #[arg(long)]
+        media_type: Option<String>,
+
+        /// Target server dir
+        dir: String,
+
+        /// Target server file name
+        name: String,
+
         /// Version to upload
-        #[arg(long, default_value = "1")]
         version: String,
 
-        /// Whether delete or not immediately after upload
-        #[arg(short, long, default_value = "false")]
-        save_version: bool,
+        /// Path to upload file
+        src: PathBuf,
+    },
+
+    /// Tag specific file version
+    Tag {
+        /// File version id
+        file_version_id: i64,
+
+        /// Tag
+        tag: String,
+    },
+
+    /// Delete specific file version
+    Delete {
+        /// File version id
+        file_version_id: i64,
     },
 }

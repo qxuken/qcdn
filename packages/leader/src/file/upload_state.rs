@@ -60,7 +60,7 @@ impl FileUploadRequested {
             let file_upsert = FileUpsert {
                 dir_id: dir.id,
                 name: meta.name.clone(),
-                file_type: meta.file_type().into(),
+                media_type: meta.media_type.clone(),
                 created_at: None,
             };
             let file = file_upsert
@@ -75,7 +75,7 @@ impl FileUploadRequested {
             let file_version_upsert = NewFileVersion {
                 file_id: file.id,
                 size: meta.size,
-                version: meta.version.clone(),
+                name: meta.version.clone(),
                 state: FileVersionState::Downloading,
                 created_at: None,
             };

@@ -20,15 +20,6 @@ service QcdnFileUpdates {
 	rpc DeleteFileVersion(DeleteFileVersionRequest) returns (google.protobuf.Empty);
 }
 
-enum FileType {
-    Other = 0;
-    Stylesheets = 1;
-    Javascript = 2;
-    Image = 3;
-    Font = 4;
-    Text = 5;
-}
-
 message GetDirRequest {
 	int64 id = 1;
 }
@@ -54,7 +45,7 @@ message GetFileResponse {
 	int64 id = 1;
 	int64 dir_id = 2;
 	string name = 3;
-	FileType file_type = 4;
+	string media_type = 4;
 }
 
 message GetFilesResponse {
@@ -72,7 +63,7 @@ message GetFileVersionRequest {
 message GetFileVersionResponse {
 	int64 id = 1;
 	int64 file_id = 2;
-	string version = 3;
+	string name = 3;
 	int64 size = 4;
 	repeated string tags = 5;
 	bool is_deleted = 6;
@@ -89,7 +80,7 @@ message FilePart {
 message UploadMeta {
 	string dir = 1;
 	string name = 2;
-	FileType file_type = 3;
+	string media_type = 3;
 	string version = 4;
 	int64 size = 5;
 }

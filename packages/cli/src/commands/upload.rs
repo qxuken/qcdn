@@ -1,127 +1,67 @@
-use std::time::SystemTime;
+use std::{os::unix::fs::MetadataExt, path::PathBuf};
 
+use crate::{cli::Cli, rpc::Rpc};
 use color_eyre::Result;
-use qcdn_proto_client::{
-    qcdn_file_queries_client::QcdnFileQueriesClient,
-    qcdn_file_updates_client::QcdnFileUpdatesClient, qcdn_general_client::QcdnGeneralClient,
-    upload_request, DeleteFileVersionRequest, DownloadRequest, FilePart, FileType,
-    GetFileVersionsRequest, GetFilesRequest, PingMessage, UploadMeta, UploadRequest,
-};
-use tokio_stream::StreamExt;
-use tonic::Request;
+use file_format::FileFormat;
+use futures::StreamExt;
+use qcdn_proto_client::{upload_request, FilePart, UploadMeta, UploadRequest};
+use tokio::fs;
+use tokio_util::io::ReaderStream;
 
-use crate::cli::Cli;
+#[tracing::instrument(skip(cli))]
+pub async fn upload(
+    cli: &Cli,
+    dir: String,
+    name: String,
+    version: String,
+    media_type: Option<String>,
+    src: PathBuf,
+) -> Result<()> {
+    let rpc: Rpc = cli.into();
 
-#[tracing::instrument]
-pub async fn upload(cli: &Cli, version: &str, save_version: bool) -> Result<()> {
-    tracing::info!("Connecting");
-    let mut general = QcdnGeneralClient::connect(cli.url.clone()).await?;
+    tracing::debug!("Opening file handle");
+    let file = fs::File::open(&src).await?;
 
-    let ts = SystemTime::now();
-    tracing::info!("Sending ping at {ts:?}");
-    let ping = PingMessage {
-        timestamp: Some(ts.into()),
-    };
-    let response = general.ping(Request::new(ping)).await?.into_inner();
+    let mut file_updates = rpc.connect_to_file_updates().await?;
 
-    tracing::info!("{response:?}");
-
-    let response = general.version(Request::new(())).await?.into_inner();
-
-    tracing::info!("{response:?}");
-
-    let mut file_queries = QcdnFileQueriesClient::connect(cli.url.clone()).await?;
-    let mut file_updates = QcdnFileUpdatesClient::connect(cli.url.clone()).await?;
-
-    tracing::info!("Dirs");
-    let response = file_queries.get_dirs(Request::new(())).await?.into_inner();
-    tracing::info!("{response:?}");
-
-    if let Some(dir) = response.items.first() {
-        tracing::info!("Dir({}) Files:", dir.id);
-        let response = file_queries
-            .get_files(Request::new(GetFilesRequest { dir_id: dir.id }))
-            .await?
-            .into_inner();
-        tracing::info!("{response:?}");
-
-        if let Some(file) = response.items.first() {
-            tracing::info!("File({}) versions:", file.id);
-            let response = file_queries
-                .get_file_versions(Request::new(GetFileVersionsRequest { file_id: file.id }))
-                .await?
-                .into_inner();
-            tracing::info!("{response:?}");
+    let media_type = match media_type {
+        Some(t) => t,
+        None => {
+            let f = FileFormat::from_file(src)?;
+            tracing::trace!("{f:?}");
+            f.media_type().to_owned()
         }
-    }
+    };
+    tracing::trace!("media_type {media_type}");
+    let size: i64 = file.metadata().await?.size().try_into()?;
+    tracing::trace!("size {size}");
 
-    let test_file: &[u8] = include_bytes!("../../../../data/input/test.txt");
-    let init_message = upload_request::Request::Meta(UploadMeta {
-        name: "test".to_string(),
-        dir: "test".to_string(),
-        size: test_file.len().try_into()?,
-        file_type: FileType::Text.into(),
-        version: version.to_string(),
+    let init_message = Ok(upload_request::Request::Meta(UploadMeta {
+        name,
+        dir,
+        size,
+        media_type,
+        version,
+    }));
+
+    let file_stream = ReaderStream::new(file).map(|frame| {
+        frame
+            .map(|bytes| FilePart {
+                bytes: bytes.into(),
+            })
+            .map(upload_request::Request::Part)
     });
-    let chunked = tokio_stream::iter(test_file.chunks(4096))
-        .map(|bytes| FilePart {
-            bytes: bytes.to_vec(),
-        })
-        .map(upload_request::Request::Part);
 
     let stream = tokio_stream::once(init_message)
-        .chain(chunked)
-        .map(|req| UploadRequest { request: Some(req) });
+        .chain(file_stream)
+        .map(|req| UploadRequest { request: req.ok() });
 
-    tracing::info!("Starting upload");
+    tracing::debug!("Starting upload");
     let uploaded_file = file_updates.upload(stream).await?.into_inner();
 
     tracing::info!("Uploaded file");
-    tracing::info!("{uploaded_file:?}");
 
-    let file_id = uploaded_file.file_id;
-    let file_version_id = uploaded_file.file_version_id;
-
-    tracing::info!("File({file_id}) versions:");
-    let response = file_queries
-        .get_file_versions(Request::new(GetFileVersionsRequest {
-            file_id: file_id.to_owned(),
-        }))
-        .await?
-        .into_inner();
-    tracing::info!("{response:?}");
-
-    if !save_version {
-        file_updates
-            .delete_file_version(Request::new(DeleteFileVersionRequest {
-                id: file_version_id.to_owned(),
-            }))
-            .await?
-            .into_inner();
-        tracing::info!("Deleted FileVersion({file_version_id})");
-    }
-
-    tracing::info!("File({file_id}) versions:");
-    let response = file_queries
-        .get_file_versions(Request::new(GetFileVersionsRequest {
-            file_id: file_id.to_owned(),
-        }))
-        .await?
-        .into_inner();
-    tracing::info!("{response:?}");
-
-    tracing::info!("Downloading FileVersion({file_version_id})");
-    let mut response = file_queries
-        .download(Request::new(DownloadRequest {
-            file_version_id: file_version_id.to_owned(),
-        }))
-        .await?
-        .into_inner();
-
-    while let Some(part) = response.next().await.transpose()? {
-        println!("Got part {:?}", part.bytes.len());
-    }
-    tracing::info!("Done");
-
+    println!("{uploaded_file:?}");
+    println!("Ok");
     Ok(())
 }

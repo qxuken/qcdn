@@ -9,17 +9,17 @@ CREATE TABLE file(
   id               INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
   dir_id           INTEGER                           NOT NULL,
   name                TEXT                           NOT NULL,
-  file_type       SMALLINT                           NOT NULL,
+  media_type          TEXT                           NOT NULL,
   created_at      DATETIME                           NOT NULL,
   FOREIGN KEY (dir_id) REFERENCES dir(id),
-  UNIQUE (dir_id, name, file_type)
+  UNIQUE (dir_id, name)
 );
 
 CREATE TABLE file_version(
   id           INTEGER PRIMARY KEY AUTOINCREMENT  NOT NULL,
   file_id      INTEGER                            NOT NULL,
   size         INTEGER                            NOT NULL,
-  version         TEXT                            NOT NULL,
+  name            TEXT                            NOT NULL,
   state       SMALLINT                            NOT NULL,
   created_at  DATETIME                            NOT NULL,
   deleted_at  DATETIME                      ,

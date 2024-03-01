@@ -62,22 +62,15 @@ impl Display for StdTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let divider = self.format.divider();
         let pad_enabled = self.format.pad_enabled();
+        let cols_count = self.max_sizes.len();
         if self.format.with_header() {
-            for (i, header) in self.headers.iter().enumerate() {
-                let len = header.len();
+            for (i, size) in self.max_sizes.iter().enumerate() {
+                let header = self.headers.get(i).unwrap_or(&"");
                 write!(
                     f,
                     "{header:>width$}{divider}",
-                    width = if pad_enabled {
-                        self.max_sizes.get(i).unwrap_or(&len)
-                    } else {
-                        &0
-                    },
-                    divider = if self.headers.len() - 1 != i {
-                        divider
-                    } else {
-                        ""
-                    }
+                    width = if pad_enabled { size } else { &0 },
+                    divider = if cols_count - 1 != i { divider } else { "" }
                 )?;
             }
             writeln!(f)?;
@@ -96,17 +89,13 @@ impl Display for StdTable {
         }
 
         for row in self.rows.iter() {
-            for (i, col) in row.iter().enumerate() {
-                let len = col.len();
+            for (i, size) in self.max_sizes.iter().enumerate() {
+                let col = row.get(i).map(|s| s.to_string()).unwrap_or("".to_string());
                 write!(
                     f,
                     "{col:>width$}{divider}",
-                    width = if pad_enabled {
-                        self.max_sizes.get(i).unwrap_or(&len)
-                    } else {
-                        &0
-                    },
-                    divider = if row.len() - 1 != i { divider } else { "" }
+                    width = if pad_enabled { size } else { &0 },
+                    divider = if cols_count - 1 != i { divider } else { "" }
                 )?;
             }
             writeln!(f)?;

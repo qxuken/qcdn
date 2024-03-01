@@ -3,7 +3,7 @@ use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{DatabaseConnection, DatabaseError};
+use crate::{DatabaseConnection, DatabaseError, FileVersion};
 
 use super::FileVersionTag;
 
@@ -44,12 +44,9 @@ impl FileVersionTagUpsert {
         self,
         connection: &mut DatabaseConnection,
     ) -> Result<FileVersionTag, DatabaseError> {
-        let item = match FileVersionTag::find_by_version_and_name(
-            connection,
-            &self.file_version_id,
-            &self.name,
-        )
-        .await?
+        let fv = FileVersion::find_by_id(connection, &self.file_version_id).await?;
+        let item = match FileVersionTag::find_by_file_and_name(connection, &fv.file_id, &self.name)
+            .await?
         {
             Some(mut tag) => {
                 tag.move_to_version(connection, &self.file_version_id)

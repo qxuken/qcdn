@@ -7,7 +7,7 @@ impl From<FileVersionWithTags> for GetFileVersionResponse {
         Self {
             id: value.id,
             file_id: value.file_id,
-            version: value.version,
+            name: value.name,
             size: value.size,
             tags: value.tags,
             is_deleted: value.deleted_at.is_some(),
