@@ -11,6 +11,7 @@ use super::{FileVersion, FileVersionState};
 pub struct NewFileVersion {
     pub file_id: i64,
     pub size: i64,
+    pub hash: String,
     pub name: String,
     pub state: FileVersionState,
     pub created_at: Option<NaiveDateTime>,
@@ -34,12 +35,13 @@ impl NewFileVersion {
         let item = sqlx::query_as!(
             FileVersion,
             r#"
-            INSERT INTO file_version(file_id, size, name, state, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO file_version(file_id, size, hash, name, state, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             RETURNING *
             "#,
             self.file_id,
             self.size,
+            self.hash,
             self.name,
             self.state,
             created_at,

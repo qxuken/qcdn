@@ -4,8 +4,7 @@ An almost immutable storage solution with replication __**(later)**__.
 
 ## HTTP
 
-- GET `<base>/health` - heath (protected)
-- GET `<base>/v/<file_version.id>` - download file
+- GET `<base>/health` - health
 - GET `<base>/f/<file.dir>/<file.name>(@<version or tag = latest>)` - download file
 
 ## gRPC

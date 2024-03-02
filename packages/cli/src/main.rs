@@ -11,7 +11,7 @@ pub mod utils;
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
 
-    qcdn_utils::setup_color_eyre()?;
+    qcdn_utils::color_eyre::setup()?;
 
     let cli = cli::Cli::parse();
     cli.instrumentation.setup(&[

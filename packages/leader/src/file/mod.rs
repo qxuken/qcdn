@@ -150,12 +150,13 @@ impl QcdnFileQueries for FileService {
         let path = FileVersion::find_by_id(&mut connection, &file_version_id)
             .await?
             .path(&mut connection)
-            .await?;
-        tracing::trace!("{path:?}");
+            .await?
+            .to_string();
+        tracing::trace!("Storage path {path:?}");
 
         let file = self
             .storage
-            .open_file(&path.dir, &path.version)
+            .open_file(&path)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -167,7 +168,7 @@ impl QcdnFileQueries for FileService {
                 .map_err(|e| Status::internal(e.to_string()))
         });
 
-        tracing::debug!("Sending file");
+        tracing::debug!("Sending file stream");
 
         Ok(Response::new(Box::pin(stream)))
     }

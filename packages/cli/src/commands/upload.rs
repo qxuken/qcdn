@@ -21,25 +21,25 @@ pub async fn upload(
 
     tracing::debug!("Opening file handle");
     let file = fs::File::open(&src).await?;
+    let hash = qcdn_utils::hash::sha256_file(&src).await?;
 
-    let mut file_updates = rpc.connect_to_file_updates().await?;
-
-    let media_type = match media_type {
-        Some(t) => t,
-        None => {
-            let f = FileFormat::from_file(src)?;
-            tracing::trace!("{f:?}");
-            f.media_type().to_owned()
-        }
-    };
+    let media_type = tokio::spawn(async {
+        media_type
+            .map(Ok)
+            .unwrap_or_else(|| FileFormat::from_file(src).map(|f| f.media_type().to_owned()))
+    })
+    .await??;
     tracing::trace!("media_type {media_type}");
     let size: i64 = file.metadata().await?.size().try_into()?;
     tracing::trace!("size {size}");
+
+    let mut file_updates = rpc.connect_to_file_updates().await?;
 
     let init_message = Ok(upload_request::Request::Meta(UploadMeta {
         name,
         dir,
         size,
+        hash,
         media_type,
         version,
     }));

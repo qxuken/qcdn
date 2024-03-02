@@ -65,8 +65,9 @@ message GetFileVersionResponse {
 	int64 file_id = 2;
 	string name = 3;
 	int64 size = 4;
-	repeated string tags = 5;
-	bool is_deleted = 6;
+	string hash = 5;
+	repeated string tags = 6;
+	bool is_deleted = 7;
 }
 
 message GetFileVersionsResponse {
@@ -83,6 +84,7 @@ message UploadMeta {
 	string media_type = 3;
 	string version = 4;
 	int64 size = 5;
+	string hash = 6;
 }
 
 message UploadRequest {

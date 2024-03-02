@@ -5,7 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use color_eyre::{eyre::eyre, Report, Result};
+use color_eyre::{
+    eyre::{eyre, OptionExt},
+    Report, Result,
+};
 use tokio::fs;
 use tracing::instrument;
 
@@ -50,7 +53,7 @@ impl Storage {
 
 impl Storage {
     #[instrument(skip(self))]
-    pub fn get_path(&self, relative_path: &str, from_root: bool) -> PathBuf {
+    pub fn get_path<P: AsRef<Path> + Debug>(&self, relative_path: P, from_root: bool) -> PathBuf {
         let dir = if from_root {
             self.root.clone()
         } else {
@@ -62,29 +65,29 @@ impl Storage {
     }
 
     #[instrument(skip(self))]
-    pub async fn open_file(&self, dir: &str, filename: &str) -> Result<fs::File> {
-        let path = self.subdir.clone().join(dir).join(filename);
+    pub async fn open_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<fs::File> {
+        let path = self.subdir.join(relative_path);
         tracing::trace!("Opening file {path:?}");
 
         Ok(fs::File::open(path).await?)
     }
 
     #[instrument(skip(self))]
-    pub async fn create_file(&self, dir: &str, filename: &str) -> Result<fs::File> {
-        let dir_path = self.subdir.clone().join(dir);
+    pub async fn create_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<fs::File> {
+        let file_path = self.subdir.join(relative_path);
+        let dir_path = file_path.parent().ok_or_eyre("Unable to find parent dir")?;
         tracing::trace!("Checking directory {dir_path:?}");
         if fs::read_dir(&dir_path).await.is_err() {
             tracing::trace!("Creating directory {dir_path:?}");
-            fs::create_dir(&dir_path).await?;
+            fs::create_dir_all(&dir_path).await?;
         }
-        let file_path = dir_path.join(filename);
         tracing::trace!("Creating file {file_path:?}");
         Ok(fs::File::create(file_path).await?)
     }
 
     #[instrument(skip(self))]
-    pub async fn remove_file(&self, dir: &str, filename: &str) -> Result<()> {
-        let file_path = self.subdir.clone().join(dir).join(filename);
+    pub async fn remove_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<()> {
+        let file_path = self.subdir.join(relative_path);
         if !file_path.is_file() {
             return Err(Report::msg(format!("{file_path:?} is not a file")));
         }

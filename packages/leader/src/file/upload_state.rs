@@ -21,6 +21,7 @@ pub struct FileUploading {
     received_bytes: i64,
     meta: UploadMeta,
     file_handle: fs::File,
+    path: String,
     dir: Arc<Dir>,
     file: Arc<File>,
     file_version: Arc<Mutex<FileVersion>>,
@@ -40,6 +41,7 @@ impl FileUploadRequested {
         let mut cleanup_dir = None;
         let mut cleanup_file = None;
         let mut cleanup_file_version = None;
+        let mut cleanup_file_path = None;
 
         let mut connection = self.db.establish_connection().await?;
         let storage = self.storage.clone();
@@ -75,6 +77,7 @@ impl FileUploadRequested {
             let file_version_upsert = NewFileVersion {
                 file_id: file.id,
                 size: meta.size,
+                hash: meta.hash.clone(),
                 name: meta.version.clone(),
                 state: FileVersionState::Downloading,
                 created_at: None,
@@ -89,12 +92,17 @@ impl FileUploadRequested {
 
             cleanup_file_version = Some(file_version.clone());
 
-            let file_handle = storage
-                .create_file(
-                    &dir.id.to_string(),
-                    &file_version.lock().await.id.to_string(),
-                )
-                .await?;
+            let path = file_version
+                .lock()
+                .await
+                .path(&mut connection)
+                .await?
+                .to_string();
+            tracing::trace!("Storage path {path:?}");
+
+            cleanup_file_path = Some(path.clone());
+
+            let file_handle = storage.create_file(&path).await?;
             tracing::trace!("Created system file");
             tracing::trace!("{file_handle:?}");
 
@@ -106,6 +114,7 @@ impl FileUploadRequested {
                 received_bytes: 0,
                 meta,
                 file_handle,
+                path,
                 dir,
                 file,
                 file_version,
@@ -114,17 +123,6 @@ impl FileUploadRequested {
 
         if res.is_err() {
             tracing::trace!("Cleaning needed");
-
-            if let Some(dir) = &cleanup_dir {
-                tracing::trace!("Cleaning up dir");
-                tracing::trace!("{dir:?}");
-                dir.delete_if_no_files_exists(&mut connection).await?;
-            }
-            if let Some(file) = &cleanup_file {
-                tracing::trace!("Cleaning up file");
-                tracing::trace!("{file:?}");
-                file.delete_if_no_versions_exists(&mut connection).await?;
-            }
             if let Some(file_version) = &cleanup_file_version {
                 tracing::trace!("Cleaning up file_version");
                 tracing::trace!("{file_version:?}");
@@ -134,14 +132,22 @@ impl FileUploadRequested {
                     .unsafe_delete(&mut connection)
                     .await?;
             }
-            if let Some((dir, file_version)) = cleanup_dir.zip(cleanup_file_version) {
+
+            if let Some(path) = cleanup_file_path {
                 tracing::trace!("Cleaning up system file");
-                storage
-                    .remove_file(
-                        &dir.id.to_string(),
-                        &file_version.lock().await.id.to_string(),
-                    )
-                    .await?;
+                storage.remove_file(&path).await?;
+            }
+
+            if let Some(file) = &cleanup_file {
+                tracing::trace!("Cleaning up file");
+                tracing::trace!("{file:?}");
+                file.delete_if_no_versions_exists(&mut connection).await?;
+            }
+
+            if let Some(dir) = &cleanup_dir {
+                tracing::trace!("Cleaning up dir");
+                tracing::trace!("{dir:?}");
+                dir.delete_if_no_files_exists(&mut connection).await?;
             }
         }
 
@@ -152,17 +158,10 @@ impl FileUploadRequested {
 impl FileUploading {
     #[instrument(skip_all)]
     pub async fn cleanup(&self) -> Result<()> {
-        tracing::trace!("Cleaning requested");
+        tracing::debug!("Cleaning requested");
+
         let mut connection = self.db.establish_connection().await?;
 
-        tracing::trace!("Cleaning up dir");
-        tracing::trace!("{:?}", self.dir);
-        self.dir.delete_if_no_files_exists(&mut connection).await?;
-        tracing::trace!("Cleaning up file");
-        tracing::trace!("{:?}", self.file);
-        self.file
-            .delete_if_no_versions_exists(&mut connection)
-            .await?;
         tracing::trace!("Cleaning up file_version");
         tracing::trace!("{:?}", self.file_version);
         self.file_version
@@ -170,13 +169,19 @@ impl FileUploading {
             .await
             .unsafe_delete(&mut connection)
             .await?;
+
         tracing::trace!("Cleaning up system file");
-        self.storage
-            .remove_file(
-                &self.dir.id.to_string(),
-                &self.file_version.lock().await.id.to_string(),
-            )
+        self.storage.remove_file(&self.path).await?;
+
+        tracing::trace!("Cleaning up file");
+        tracing::trace!("{:?}", self.file);
+        self.file
+            .delete_if_no_versions_exists(&mut connection)
             .await?;
+
+        tracing::trace!("Cleaning up dir");
+        tracing::trace!("{:?}", self.dir);
+        self.dir.delete_if_no_files_exists(&mut connection).await?;
 
         Ok(())
     }
@@ -206,6 +211,14 @@ impl FileUploading {
                 tracing::debug!("Size check failed");
                 return Err(eyre!("file transmission corrupted"));
             }
+
+            let path = self.storage.get_path(&self.path, false);
+            let hash = qcdn_utils::hash::sha256_file(&path).await?;
+            if self.meta.hash != hash {
+                tracing::debug!("Hash check failed");
+                return Err(eyre!("file transmission corrupted"));
+            }
+
             tracing::debug!("Updating version state to ready");
             self.file_version
                 .lock()

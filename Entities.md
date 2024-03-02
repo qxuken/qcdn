@@ -51,6 +51,7 @@ chunk received:
 init from `1`:
 
 - check meta size with received amount
+- check meta hash with resulted file hash
 - mark version as ready
 - transition latest if needed
 - send update message

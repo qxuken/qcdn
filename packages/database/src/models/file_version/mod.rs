@@ -21,6 +21,7 @@ pub struct FileVersion {
     pub id: i64,
     pub file_id: i64,
     pub size: i64,
+    pub hash: String,
     pub name: String,
     pub state: FileVersionState,
     pub created_at: NaiveDateTime,
@@ -64,7 +65,7 @@ impl FileVersion {
     ) -> Result<Option<Self>, DatabaseError> {
         let item = sqlx::query_as!(
             Self,
-            "SELECT * FROM file_version WHERE file_id = ? AND name = ? AND state = ? AND deleted_at IS NULL",
+            "SELECT * FROM file_version WHERE file_id = ? AND name = ? AND state = ?",
             file_id,
             name,
             FileVersionState::Ready,

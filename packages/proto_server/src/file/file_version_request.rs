@@ -9,6 +9,7 @@ impl From<FileVersionWithTags> for GetFileVersionResponse {
             file_id: value.file_id,
             name: value.name,
             size: value.size,
+            hash: value.hash,
             tags: value.tags,
             is_deleted: value.deleted_at.is_some(),
         }

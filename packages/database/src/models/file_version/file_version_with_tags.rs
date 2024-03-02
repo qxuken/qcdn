@@ -10,6 +10,7 @@ struct FileVersionWithTagsRaw {
     id: i64,
     file_id: i64,
     size: i64,
+    hash: String,
     name: String,
     state: FileVersionState,
     tags: Option<String>,
@@ -22,6 +23,7 @@ pub struct FileVersionWithTags {
     pub id: i64,
     pub file_id: i64,
     pub size: i64,
+    pub hash: String,
     pub name: String,
     pub state: FileVersionState,
     pub tags: Vec<String>,
@@ -35,6 +37,7 @@ impl From<FileVersionWithTagsRaw> for FileVersionWithTags {
             id: value.id,
             file_id: value.file_id,
             size: value.size,
+            hash: value.hash,
             name: value.name,
             state: value.state,
             tags: value

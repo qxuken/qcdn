@@ -19,6 +19,7 @@ CREATE TABLE file_version(
   id           INTEGER PRIMARY KEY AUTOINCREMENT  NOT NULL,
   file_id      INTEGER                            NOT NULL,
   size         INTEGER                            NOT NULL,
+  hash            TEXT                            NOT NULL,
   name            TEXT                            NOT NULL,
   state       SMALLINT                            NOT NULL,
   created_at  DATETIME                            NOT NULL,

@@ -8,3 +8,9 @@ publish = false
 
 [dependencies]
 color-eyre.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+ring = "0.17.8"
+data-encoding = "2.5.0"
