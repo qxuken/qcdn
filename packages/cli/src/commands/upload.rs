@@ -1,4 +1,5 @@
-use std::{os::unix::fs::MetadataExt, path::PathBuf};
+use filesize::PathExt;
+use std::path::PathBuf;
 
 use crate::{cli::Cli, rpc::Rpc};
 use color_eyre::Result;
@@ -23,6 +24,9 @@ pub async fn upload(
     let file = fs::File::open(&src).await?;
     let hash = qcdn_utils::hash::sha256_file(&src).await?;
 
+    let size: i64 = src.as_path().size_on_disk()?.try_into()?;
+    tracing::trace!("size {size}");
+
     let media_type = tokio::spawn(async {
         media_type
             .map(Ok)
@@ -30,8 +34,6 @@ pub async fn upload(
     })
     .await??;
     tracing::trace!("media_type {media_type}");
-    let size: i64 = file.metadata().await?.size().try_into()?;
-    tracing::trace!("size {size}");
 
     let mut file_updates = rpc.connect_to_file_updates().await?;
 
