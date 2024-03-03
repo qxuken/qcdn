@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Connection;
 use tracing::instrument;
 
+pub use file_version_meta::FileVersionMeta;
 pub use file_version_path_parts::FileVersionPathParts;
 pub use file_version_state::FileVersionState;
 pub use file_version_with_tags::FileVersionWithTags;
@@ -11,6 +12,7 @@ pub use new_file_version::NewFileVersion;
 
 use crate::{DatabaseConnection, DatabaseError};
 
+mod file_version_meta;
 mod file_version_path_parts;
 mod file_version_state;
 mod file_version_with_tags;

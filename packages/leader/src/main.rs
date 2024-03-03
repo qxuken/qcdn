@@ -37,7 +37,7 @@ async fn main() -> color_eyre::Result<()> {
     let storage = Arc::new(qcdn_storage::Storage::try_from_path(&cli.data, "storage").await?);
 
     let db_path = storage.get_path(qcdn_database::DB_NAME, true);
-    let db = Arc::new(qcdn_database::Database::try_from_path(&db_path).await?);
+    let db = Arc::new(qcdn_database::Database::try_from_path(&db_path, false).await?);
     db.run_migrations().await?;
 
     let general = QcdnGeneralServer::new(GeneralService::default());

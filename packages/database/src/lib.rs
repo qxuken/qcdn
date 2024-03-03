@@ -2,7 +2,7 @@ use color_eyre::Result;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{SqliteConnection, SqlitePool};
-use std::path::PathBuf;
+use std::{fmt::Debug, path::Path};
 use tracing::instrument;
 
 pub use constants::*;
@@ -23,12 +23,16 @@ pub struct Database(SqlitePool);
 
 impl Database {
     #[instrument]
-    pub async fn try_from_path(path: &PathBuf) -> Result<Self, DatabaseError> {
+    pub async fn try_from_path<P: AsRef<Path> + Debug>(
+        path: P,
+        read_only: bool,
+    ) -> Result<Self, DatabaseError> {
         tracing::trace!("Creating database pool");
         let res = SqlitePool::connect_with(
             SqliteConnectOptions::new()
                 .filename(path)
-                .create_if_missing(true),
+                .create_if_missing(true)
+                .read_only(read_only),
         )
         .await
         .map(Self)

@@ -19,7 +19,7 @@ mod constants;
 #[derive(Debug, Clone)]
 pub struct Storage {
     root: Arc<PathBuf>,
-    subdir: Arc<PathBuf>,
+    sub_dir: Arc<PathBuf>,
 }
 
 impl Storage {
@@ -43,7 +43,7 @@ impl Storage {
 
         let storage = Self {
             root: Arc::new(dir.to_path_buf()),
-            subdir: Arc::new(target),
+            sub_dir: Arc::new(target),
         };
         tracing::info!("Created storage");
         tracing::trace!("{:?}", storage);
@@ -53,11 +53,19 @@ impl Storage {
 
 impl Storage {
     #[instrument(skip(self))]
+    pub fn ping(&self) -> Result<()> {
+        if !self.sub_dir.is_dir() {
+            return Err(eyre!("Storage sub dir is not exists"));
+        }
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
     pub fn get_path<P: AsRef<Path> + Debug>(&self, relative_path: P, from_root: bool) -> PathBuf {
         let dir = if from_root {
             self.root.clone()
         } else {
-            self.subdir.clone()
+            self.sub_dir.clone()
         };
         let path = dir.join(relative_path);
         tracing::trace!("Storage path {path:?}");
@@ -66,7 +74,7 @@ impl Storage {
 
     #[instrument(skip(self))]
     pub async fn open_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<fs::File> {
-        let path = self.subdir.join(relative_path);
+        let path = self.sub_dir.join(relative_path);
         tracing::trace!("Opening file {path:?}");
 
         Ok(fs::File::open(path).await?)
@@ -74,7 +82,7 @@ impl Storage {
 
     #[instrument(skip(self))]
     pub async fn create_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<fs::File> {
-        let file_path = self.subdir.join(relative_path);
+        let file_path = self.sub_dir.join(relative_path);
         let dir_path = file_path.parent().ok_or_eyre("Unable to find parent dir")?;
         tracing::trace!("Checking directory {dir_path:?}");
         if fs::read_dir(&dir_path).await.is_err() {
@@ -87,7 +95,7 @@ impl Storage {
 
     #[instrument(skip(self))]
     pub async fn remove_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<()> {
-        let file_path = self.subdir.join(relative_path);
+        let file_path = self.sub_dir.join(relative_path);
         if !file_path.is_file() {
             return Err(Report::msg(format!("{file_path:?} is not a file")));
         }
