@@ -1,14 +1,13 @@
+#![feature(io_error_more)]
 use std::{
     env,
     fmt::Debug,
+    io::Error,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use color_eyre::{
-    eyre::{eyre, OptionExt},
-    Report, Result,
-};
+use color_eyre::Result;
 use tokio::fs;
 use tracing::instrument;
 
@@ -24,7 +23,7 @@ pub struct Storage {
 
 impl Storage {
     #[instrument]
-    pub async fn try_from_path(path: &Path, subdir: &'static str) -> Result<Self> {
+    pub async fn try_from_path(path: &Path, subdir: &'static str) -> Result<Self, Error> {
         tracing::trace!("Creating storage");
         let dir = if path.is_absolute() {
             path.into()
@@ -38,7 +37,10 @@ impl Storage {
             fs::create_dir_all(&target).await?;
         }
         if !target.is_dir() {
-            return Err(eyre!(format!("{target:?} is not a directory")));
+            return Err(Error::new(
+                std::io::ErrorKind::NotADirectory,
+                format!("{target:?} is not a directory"),
+            ));
         }
 
         let storage = Self {
@@ -53,9 +55,12 @@ impl Storage {
 
 impl Storage {
     #[instrument(skip(self))]
-    pub fn ping(&self) -> Result<()> {
+    pub fn ping(&self) -> Result<(), Error> {
         if !self.sub_dir.is_dir() {
-            return Err(eyre!("Storage sub dir is not exists"));
+            return Err(Error::new(
+                std::io::ErrorKind::NotFound,
+                "Storage sub dir is not exists",
+            ));
         }
         Ok(())
     }
@@ -73,33 +78,44 @@ impl Storage {
     }
 
     #[instrument(skip(self))]
-    pub async fn open_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<fs::File> {
+    pub async fn open_file<P: AsRef<Path> + Debug>(
+        &self,
+        relative_path: P,
+    ) -> Result<fs::File, Error> {
         let path = self.sub_dir.join(relative_path);
         tracing::trace!("Opening file {path:?}");
 
-        Ok(fs::File::open(path).await?)
+        fs::File::open(path).await
     }
 
     #[instrument(skip(self))]
-    pub async fn create_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<fs::File> {
+    pub async fn create_file<P: AsRef<Path> + Debug>(
+        &self,
+        relative_path: P,
+    ) -> Result<fs::File, Error> {
         let file_path = self.sub_dir.join(relative_path);
-        let dir_path = file_path.parent().ok_or_eyre("Unable to find parent dir")?;
+        let dir_path = file_path
+            .parent()
+            .ok_or_else(|| Error::new(std::io::ErrorKind::NotFound, "Unable to find parent dir"))?;
         tracing::trace!("Checking directory {dir_path:?}");
         if fs::read_dir(&dir_path).await.is_err() {
             tracing::trace!("Creating directory {dir_path:?}");
             fs::create_dir_all(&dir_path).await?;
         }
         tracing::trace!("Creating file {file_path:?}");
-        Ok(fs::File::create(file_path).await?)
+        fs::File::create(file_path).await
     }
 
     #[instrument(skip(self))]
-    pub async fn remove_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<()> {
+    pub async fn remove_file<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Result<(), Error> {
         let file_path = self.sub_dir.join(relative_path);
         if !file_path.is_file() {
-            return Err(Report::msg(format!("{file_path:?} is not a file")));
+            return Err(Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("{file_path:?} is not a file"),
+            ));
         }
         tracing::trace!("Removing file {file_path:?}");
-        Ok(fs::remove_file(file_path).await?)
+        fs::remove_file(file_path).await
     }
 }

@@ -16,11 +16,12 @@ use crate::file::FileService;
 
 mod cli;
 pub mod constants;
+pub mod error;
 mod file;
 mod general;
 
 #[tokio::main]
-async fn main() -> color_eyre::Result<()> {
+async fn main() -> error::Result<()> {
     dotenvy::dotenv().ok();
 
     qcdn_utils::color_eyre::setup()?;

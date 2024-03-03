@@ -1,10 +1,3 @@
-use qcdn_proto_server::{
-    qcdn_file_queries_server::QcdnFileQueries, qcdn_file_updates_server::QcdnFileUpdates,
-    upload_request, DeleteFileVersionRequest, DownloadRequest, FilePart, GetDirRequest,
-    GetDirResponse, GetDirsResponse, GetFileRequest, GetFileResponse, GetFileVersionRequest,
-    GetFileVersionResponse, GetFileVersionsRequest, GetFileVersionsResponse, GetFilesRequest,
-    GetFilesResponse, TagVersionRequest, UploadRequest, UploadResponse,
-};
 use std::{pin::Pin, sync::Arc};
 use tokio_stream::{Stream, StreamExt};
 use tokio_util::io::ReaderStream;
@@ -12,9 +5,18 @@ use tonic::{Request, Response, Status, Streaming};
 use tracing::instrument;
 
 use qcdn_database::{Database, Dir, File, FileVersion, FileVersionTagUpsert, FileVersionWithTags};
+use qcdn_proto_server::{
+    qcdn_file_queries_server::QcdnFileQueries, qcdn_file_updates_server::QcdnFileUpdates,
+    upload_request, DeleteFileVersionRequest, DownloadRequest, FilePart, GetDirRequest,
+    GetDirResponse, GetDirsResponse, GetFileRequest, GetFileResponse, GetFileVersionRequest,
+    GetFileVersionResponse, GetFileVersionsRequest, GetFileVersionsResponse, GetFilesRequest,
+    GetFilesResponse, TagVersionRequest, UploadRequest, UploadResponse,
+};
 use qcdn_storage::Storage;
 
 use self::upload_state::FileUploadRequested;
+
+use crate::error::Result;
 
 mod upload_state;
 
@@ -184,11 +186,7 @@ impl QcdnFileUpdates for FileService {
         tracing::debug!("Got request");
         let mut in_stream = request.into_inner();
 
-        let db = self.db.clone();
-        let storage = self.storage.clone();
-        let state = FileUploadRequested::try_init(storage, db)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let state = FileUploadRequested::new(self.storage.clone(), self.db.clone());
 
         let mut state = if let Some(result) = in_stream
             .next()
@@ -197,10 +195,7 @@ impl QcdnFileUpdates for FileService {
             .transpose()?
         {
             match result {
-                upload_request::Request::Meta(meta) => state
-                    .got_meta(meta)
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?,
+                upload_request::Request::Meta(meta) => state.got_meta(meta).await?,
                 _ => {
                     return Err(Status::failed_precondition(
                         "UploadFileMeta should be first message",
@@ -219,25 +214,16 @@ impl QcdnFileUpdates for FileService {
         {
             match result {
                 upload_request::Request::Meta(_) => {
-                    state
-                        .cleanup()
-                        .await
-                        .map_err(|e| Status::internal(e.to_string()))?;
+                    state.cleanup().await?;
                     return Err(Status::aborted(
                         "UploadFileMeta message cannot be sent twice",
                     ));
                 }
-                upload_request::Request::Part(part) => state
-                    .got_part(part)
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?,
+                upload_request::Request::Part(part) => state.got_part(part).await?,
             };
         }
 
-        let res = state
-            .end()
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let res = state.end().await?;
 
         Ok(Response::new(res))
     }

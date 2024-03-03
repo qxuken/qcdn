@@ -15,6 +15,7 @@ qcdn_proto_server = { path = "../proto_server" }
 dotenvy.workspace = true
 clap.workspace = true
 color-eyre.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true

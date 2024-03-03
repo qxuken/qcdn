@@ -1,14 +1,14 @@
 use color_eyre::Result;
 use data_encoding::BASE64;
 use ring::digest::{Context, SHA256};
-use std::{fmt::Debug, path::Path};
+use std::{fmt::Debug, io::Error, path::Path};
 use tokio::fs;
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 use tracing::instrument;
 
 #[instrument]
-pub async fn sha256_file<P: AsRef<Path> + Debug>(path: P) -> Result<String> {
+pub async fn sha256_file<P: AsRef<Path> + Debug>(path: P) -> Result<String, Error> {
     tracing::trace!("Opening file handle");
     let file = fs::File::open(path).await?;
 

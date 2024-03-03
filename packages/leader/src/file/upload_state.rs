@@ -1,6 +1,5 @@
-use color_eyre::{eyre::eyre, Result};
 use futures::lock::Mutex;
-use std::sync::Arc;
+use std::{num::TryFromIntError, sync::Arc};
 use tokio::{fs, io::AsyncWriteExt};
 use tracing::instrument;
 
@@ -9,6 +8,8 @@ use qcdn_database::{
 };
 use qcdn_proto_server::{FilePart, UploadMeta, UploadResponse};
 use qcdn_storage::Storage;
+
+use crate::error::{AppError, Result};
 
 pub struct FileUploadRequested {
     storage: Arc<Storage>,
@@ -29,8 +30,8 @@ pub struct FileUploading {
 
 impl FileUploadRequested {
     #[instrument(skip_all)]
-    pub async fn try_init(storage: Arc<Storage>, db: Arc<Database>) -> Result<Self> {
-        Ok(Self { storage, db })
+    pub fn new(storage: Arc<Storage>, db: Arc<Database>) -> Self {
+        Self { storage, db }
     }
 }
 
@@ -43,7 +44,11 @@ impl FileUploadRequested {
         let mut cleanup_file_version = None;
         let mut cleanup_file_path = None;
 
-        let mut connection = self.db.establish_connection().await?;
+        let mut connection = self
+            .db
+            .establish_connection()
+            .await
+            .map_err(AppError::from)?;
         let storage = self.storage.clone();
 
         let res: Result<FileUploading> = try {
@@ -53,7 +58,8 @@ impl FileUploadRequested {
             }
             .find_by_name_or_create(&mut connection)
             .await
-            .map(Arc::new)?;
+            .map(Arc::new)
+            .map_err(AppError::from)?;
             tracing::trace!("Created dir");
             tracing::trace!("{dir:?}");
 
@@ -68,7 +74,8 @@ impl FileUploadRequested {
             let file = file_upsert
                 .find_by_name_or_create(&mut connection)
                 .await
-                .map(Arc::new)?;
+                .map(Arc::new)
+                .map_err(AppError::from)?;
             tracing::trace!("Created file");
             tracing::trace!("{file:?}");
 
@@ -86,7 +93,8 @@ impl FileUploadRequested {
                 .create(&mut connection)
                 .await
                 .map(Mutex::new)
-                .map(Arc::new)?;
+                .map(Arc::new)
+                .map_err(AppError::from)?;
             tracing::trace!("Created file version");
             tracing::trace!("{:?}", file_version.lock().await);
 
@@ -96,7 +104,8 @@ impl FileUploadRequested {
                 .lock()
                 .await
                 .path(&mut connection)
-                .await?
+                .await
+                .map_err(AppError::from)?
                 .to_string();
             tracing::trace!("Storage path {path:?}");
 
@@ -106,7 +115,11 @@ impl FileUploadRequested {
             tracing::trace!("Created system file");
             tracing::trace!("{file_handle:?}");
 
-            file_handle.set_len(meta.size.try_into()?).await?;
+            file_handle
+                .set_len(meta.size.try_into().map_err(|e: TryFromIntError| {
+                    AppError::Other(format!("Size conversion failed {}", e))
+                })?)
+                .await?;
 
             FileUploading {
                 storage: self.storage,
@@ -130,24 +143,29 @@ impl FileUploadRequested {
                     .lock()
                     .await
                     .unsafe_delete(&mut connection)
-                    .await?;
+                    .await
+                    .map_err(AppError::from)?;
             }
 
             if let Some(path) = cleanup_file_path {
                 tracing::trace!("Cleaning up system file");
-                storage.remove_file(&path).await?;
+                storage.remove_file(&path).await.map_err(AppError::from)?;
             }
 
             if let Some(file) = &cleanup_file {
                 tracing::trace!("Cleaning up file");
                 tracing::trace!("{file:?}");
-                file.delete_if_no_versions_exists(&mut connection).await?;
+                file.delete_if_no_versions_exists(&mut connection)
+                    .await
+                    .map_err(AppError::from)?;
             }
 
             if let Some(dir) = &cleanup_dir {
                 tracing::trace!("Cleaning up dir");
                 tracing::trace!("{dir:?}");
-                dir.delete_if_no_files_exists(&mut connection).await?;
+                dir.delete_if_no_files_exists(&mut connection)
+                    .await
+                    .map_err(AppError::from)?;
             }
         }
 
@@ -168,20 +186,28 @@ impl FileUploading {
             .lock()
             .await
             .unsafe_delete(&mut connection)
-            .await?;
+            .await
+            .map_err(AppError::from)?;
 
         tracing::trace!("Cleaning up system file");
-        self.storage.remove_file(&self.path).await?;
+        self.storage
+            .remove_file(&self.path)
+            .await
+            .map_err(AppError::from)?;
 
         tracing::trace!("Cleaning up file");
         tracing::trace!("{:?}", self.file);
         self.file
             .delete_if_no_versions_exists(&mut connection)
-            .await?;
+            .await
+            .map_err(AppError::from)?;
 
         tracing::trace!("Cleaning up dir");
         tracing::trace!("{:?}", self.dir);
-        self.dir.delete_if_no_files_exists(&mut connection).await?;
+        self.dir
+            .delete_if_no_files_exists(&mut connection)
+            .await
+            .map_err(AppError::from)?;
 
         Ok(())
     }
@@ -190,9 +216,15 @@ impl FileUploading {
     pub async fn got_part(&mut self, part: FilePart) -> Result<()> {
         tracing::trace!("Incoming bytes {:?}", part.bytes.len());
         let res: Result<()> = try {
-            self.received_bytes += i64::try_from(part.bytes.len())?;
-            self.file_handle.write_all(&part.bytes).await?;
-            self.file_handle.flush().await?;
+            self.received_bytes +=
+                i64::try_from(part.bytes.len()).map_err(|e: TryFromIntError| {
+                    AppError::Other(format!("Size conversion failed {}", e))
+                })?;
+            self.file_handle
+                .write_all(&part.bytes)
+                .await
+                .map_err(AppError::from)?;
+            self.file_handle.flush().await.map_err(AppError::from)?;
         };
 
         if res.is_err() {
@@ -206,17 +238,27 @@ impl FileUploading {
     pub async fn end(self) -> Result<UploadResponse> {
         tracing::debug!("Stream ended");
         let res: Result<UploadResponse> = try {
-            let mut connection = self.db.establish_connection().await?;
+            let mut connection = self
+                .db
+                .establish_connection()
+                .await
+                .map_err(AppError::from)?;
             if self.meta.size != self.received_bytes {
                 tracing::debug!("Size check failed");
-                return Err(eyre!("file transmission corrupted"));
+                return Err(
+                    AppError::DataCorruption("file transmission corrupted".to_string()).into(),
+                );
             }
 
             let path = self.storage.get_path(&self.path, false);
-            let hash = qcdn_utils::hash::sha256_file(&path).await?;
+            let hash = qcdn_utils::hash::sha256_file(&path)
+                .await
+                .map_err(AppError::from)?;
             if self.meta.hash != hash {
                 tracing::debug!("Hash check failed");
-                return Err(eyre!("file transmission corrupted"));
+                return Err(
+                    AppError::DataCorruption("file transmission corrupted".to_string()).into(),
+                );
             }
 
             tracing::debug!("Updating version state to ready");
@@ -224,7 +266,8 @@ impl FileUploading {
                 .lock()
                 .await
                 .update_state(&mut connection, FileVersionState::Ready)
-                .await?;
+                .await
+                .map_err(AppError::from)?;
 
             UploadResponse {
                 dir_id: self.dir.id,

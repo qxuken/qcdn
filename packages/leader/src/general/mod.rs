@@ -1,11 +1,13 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use std::time::SystemTime;
+use tonic::{Request, Response, Status};
+use tracing::instrument;
 
 use qcdn_proto_server::{
     qcdn_general_server::QcdnGeneral, PingMessage, VersionResponse, PACKAGE_VERSION,
 };
-use tonic::{Request, Response, Status};
-use tracing::instrument;
+
+use crate::error::Result;
 
 const DATETIME_FORMAT: &str = "%d/%m/%Y %T:%f";
 

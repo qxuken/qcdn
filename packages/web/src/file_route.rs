@@ -7,14 +7,17 @@ use axum::{
         },
         HeaderMap, StatusCode,
     },
-    response::IntoResponse,
+    response::{IntoResponse, Response},
 };
 use tokio_util::io::ReaderStream;
 use tracing::instrument;
 
 use qcdn_database::FileVersionMeta;
 
-use crate::{app_state::SharedAppState, error::AppError};
+use crate::{
+    app_state::SharedAppState,
+    error::{AppError, Result},
+};
 
 #[axum_macros::debug_handler]
 #[instrument(skip(state))]
@@ -22,11 +25,15 @@ pub async fn file_route(
     headers: HeaderMap,
     Path((dir, file, version_or_tag)): Path<(String, String, String)>,
     State(state): State<SharedAppState>,
-) -> Result<axum::http::Response<Body>, AppError> {
-    tracing::info!("Got request");
-
-    let mut connection = state.db.establish_connection().await?;
-    let meta = FileVersionMeta::find(&mut connection, &dir, &file, &version_or_tag).await?;
+) -> Result<Response<Body>> {
+    let mut connection = state
+        .db
+        .establish_connection()
+        .await
+        .map_err(AppError::from)?;
+    let meta = FileVersionMeta::find(&mut connection, &dir, &file, &version_or_tag)
+        .await
+        .map_err(AppError::from)?;
 
     let if_none_match = headers
         .get(IF_NONE_MATCH)
@@ -56,16 +63,12 @@ pub async fn file_route(
     } else {
         headers.insert(
             CACHE_CONTROL,
-            "max-age=31536000, immutable".parse().unwrap(),
+            "public, max-age=31536000, immutable".parse().unwrap(),
         );
     }
     headers.insert(CONTENT_TYPE, mime.parse().unwrap());
 
-    let file = state
-        .storage
-        .open_file(&meta.path)
-        .await
-        .map_err(|_| AppError::Other)?;
+    let file = state.storage.open_file(&meta.path).await?;
 
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
