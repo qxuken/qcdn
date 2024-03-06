@@ -5,15 +5,25 @@ pub mod cli;
 mod commands;
 pub mod constants;
 mod rpc;
+mod tui;
 pub mod utils;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
 
-    qcdn_utils::color_eyre::setup()?;
-
     let cli = cli::Cli::parse();
+
+    if cli.command.is_none()
+        || cli
+            .command
+            .as_ref()
+            .is_some_and(|c| matches!(c, cli::Command::Ui))
+    {
+        return tui::run(&cli).await;
+    }
+
+    qcdn_utils::color_eyre::setup()?;
     cli.instrumentation.setup(&[
         constants::PACKAGE_NAME,
         qcdn_utils::PACKAGE_NAME,
@@ -21,7 +31,8 @@ async fn main() -> Result<()> {
     ])?;
 
     match cli.command.clone().unwrap_or_default() {
-        cli::Command::Connect => commands::handshake_server::handshake_server(&cli).await,
+        cli::Command::Ui => panic!("Command should have been handled before"),
+        cli::Command::Ping => commands::handshake_server::handshake_server(&cli).await,
         cli::Command::Dirs { format } => commands::list_dirs::list_dirs(&cli, format).await,
         cli::Command::Files { dir_id, format } => {
             commands::list_files::list_files(&cli, dir_id, format).await

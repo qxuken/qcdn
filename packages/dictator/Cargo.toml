@@ -1,5 +1,5 @@
 [package]
-name = "qcdn_leader"
+name = "qcdn_dictator"
 version = "0.1.0"
 edition = "2021"
 publish = false

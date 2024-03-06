@@ -19,9 +19,12 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand, Default, Clone)]
 pub enum Command {
-    /// Test connection to server [default]
+    /// Run tui [default]
     #[default]
-    Connect,
+    Ui,
+
+    /// Test connection to server
+    Ping,
 
     /// List all directories
     Dirs {
