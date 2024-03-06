@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use std::time::SystemTime;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
@@ -24,9 +24,7 @@ impl QcdnGeneral for GeneralService {
         let from = request
             .into_inner()
             .timestamp
-            .and_then(|t| {
-                NaiveDateTime::from_timestamp_opt(t.seconds, u32::try_from(t.nanos).unwrap_or(0))
-            })
+            .and_then(|t| DateTime::from_timestamp(t.seconds, u32::try_from(t.nanos).unwrap_or(0)))
             .map(|d| d.format(DATETIME_FORMAT).to_string())
             .unwrap_or_else(|| "Unknown".to_string());
 

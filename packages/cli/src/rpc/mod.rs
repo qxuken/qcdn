@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use chrono::{DateTime, NaiveDateTime, TimeDelta, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use color_eyre::Result;
 use qcdn_proto_client::{
     qcdn_file_queries_client::QcdnFileQueriesClient,
@@ -49,12 +49,10 @@ impl Rpc {
             .await?
             .into_inner()
             .timestamp
-            .and_then(|t| {
-                NaiveDateTime::from_timestamp_opt(t.seconds, u32::try_from(t.nanos).unwrap_or(0))
-            })
+            .and_then(|t| DateTime::from_timestamp(t.seconds, u32::try_from(t.nanos).unwrap_or(0)))
             .map(|dt| {
                 let send_datetime: DateTime<Utc> = send_ts.into();
-                dt - send_datetime.naive_utc()
+                dt - send_datetime
             });
 
         Ok(latency)
