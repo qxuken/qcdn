@@ -1,6 +1,18 @@
 use color_eyre::Result;
+use ratatui::Frame;
+use tokio::sync::mpsc;
 
 use crate::{cli::Cli, rpc::Rpc};
+
+pub mod errors;
+pub mod term;
+
+pub trait Screen {
+    type Action;
+
+    fn handle(self, action: Self::Action, tx: mpsc::UnboundedSender<Self::Action>);
+    fn render(self, frame: Frame);
+}
 
 #[tracing::instrument(skip_all)]
 pub async fn run(cli: &Cli) -> Result<()> {
