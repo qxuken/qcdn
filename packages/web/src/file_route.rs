@@ -20,7 +20,7 @@ use crate::{
 };
 
 #[axum_macros::debug_handler]
-#[instrument(skip(state))]
+#[instrument(skip_all)]
 pub async fn file_route(
     headers: HeaderMap,
     Path((dir, file, version_or_tag)): Path<(String, String, String)>,

@@ -1,18 +1,11 @@
-use axum::{body::Body, extract::ConnectInfo, http::Request, response::Response};
-use std::{net::SocketAddr, time::Duration};
+use axum::{body::Body, http::Request, response::Response};
+use std::time::Duration;
 use tracing::Span;
 
 pub(crate) fn trace_layer_make_span_with(request: &Request<Body>) -> Span {
     tracing::error_span!("request",
         uri = %request.uri(),
         method = %request.method(),
-        source = request.extensions()
-            .get::<ConnectInfo<SocketAddr>>()
-            .map(|connect_info|
-                tracing::field::display(connect_info.ip().to_string()),
-            ).unwrap_or_else(||
-                tracing::field::display(String::from("<unknown>"))
-            ),
         status = tracing::field::Empty,
         latency = tracing::field::Empty,
     )
