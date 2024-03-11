@@ -13,46 +13,8 @@ use crate::{cli::Cli, rpc::Rpc};
 
 pub mod errors;
 pub mod event;
+pub mod screen;
 pub mod term;
-
-async fn print_events() {
-    let mut reader = EventStream::new();
-    let tick_rate = Duration::from_millis(250);
-    let mut interval = tokio::time::interval(tick_rate);
-
-    loop {
-        let delay = interval.tick();
-        let event = reader.next().fuse();
-
-        select! {
-            _ = delay => { println!(".\r"); },
-            maybe_event = event => {
-                match maybe_event {
-                    Some(Ok(event)) => {
-                        println!("Event::{:?}\r", event);
-
-                        if event == Event::Key(KeyCode::Char('c').into()) {
-                            println!("Cursor position: {:?}\r", position());
-                        }
-
-                        if event == Event::Key(KeyCode::Esc.into()) {
-                            break;
-                        }
-                    }
-                    Some(Err(e)) => println!("Error: {:?}\r", e),
-                    None => break,
-                }
-            }
-        };
-    }
-}
-
-pub trait Screen {
-    type Action;
-
-    fn handle(self, action: Self::Action, tx: mpsc::UnboundedSender<Self::Action>);
-    fn render(self, frame: Frame);
-}
 
 #[tracing::instrument(skip_all)]
 pub async fn run(cli: &Cli) -> Result<()> {
