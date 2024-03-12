@@ -22,7 +22,7 @@ use crate::{
 #[axum_macros::debug_handler]
 #[instrument(skip_all)]
 pub async fn file_route(
-    headers: HeaderMap,
+    req_headers: HeaderMap,
     Path((dir, file, version_or_tag)): Path<(String, String, String)>,
     State(state): State<SharedAppState>,
 ) -> Result<Response<Body>> {
@@ -31,25 +31,33 @@ pub async fn file_route(
         .establish_connection()
         .await
         .map_err(AppError::from)?;
-    let meta = FileVersionMeta::find(&mut connection, &dir, &file, &version_or_tag)
-        .await
-        .map_err(AppError::from)?;
 
-    let if_none_match = headers
+    let lru_key = format!("{}/{}/{}", dir, file, version_or_tag);
+
+    let meta = match state.files_lru.lock().await.get(&lru_key) {
+        Some(id) => FileVersionMeta::find_by_id(&mut connection, id).await,
+        None => FileVersionMeta::find_by_path(&mut connection, &dir, &file, &version_or_tag).await,
+    }
+    .map_err(AppError::from)?;
+
+    state.files_lru.lock().await.put(lru_key, meta.id);
+
+    let mut headers = HeaderMap::with_capacity(4);
+
+    let if_none_match = req_headers
         .get(IF_NONE_MATCH)
         .and_then(|h| h.to_str().ok())
         .map(|v| v.to_owned());
-    let if_modified_since = headers
-        .get(IF_MODIFIED_SINCE)
-        .and_then(|h| h.to_str().ok())
-        .map(|v| v.to_owned());
-
-    let mut headers = HeaderMap::with_capacity(4);
 
     if if_none_match.is_some_and(|v| v.contains(&meta.hash)) {
         return Ok(StatusCode::NOT_MODIFIED.into_response());
     }
     headers.insert(ETAG, meta.hash.parse().unwrap());
+
+    let if_modified_since = req_headers
+        .get(IF_MODIFIED_SINCE)
+        .and_then(|h| h.to_str().ok())
+        .map(|v| v.to_owned());
 
     let last_modified = meta.created_at.format("%a, %e %b %T %Y %T GMT").to_string();
     if if_modified_since.is_some_and(|v| v == last_modified) {

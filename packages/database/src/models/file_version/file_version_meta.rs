@@ -7,6 +7,7 @@ use crate::{DatabaseConnection, DatabaseError, FileVersionState};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FileVersionMeta {
+    pub id: i64,
     pub created_at: NaiveDateTime,
     pub media_type: String,
     pub hash: String,
@@ -15,7 +16,45 @@ pub struct FileVersionMeta {
 
 impl FileVersionMeta {
     #[instrument(skip(connection))]
-    pub async fn find(
+    pub async fn find_by_id(
+        connection: &mut DatabaseConnection,
+        id: &i64,
+    ) -> Result<Self, DatabaseError> {
+        let item = sqlx::query!(
+            r#"
+              SELECT
+                  fv.created_at,
+                  fv.hash,
+                  f.media_type,
+                  d.id dir,
+                  f.id file,
+                  fv.id version
+              FROM
+                  file_version fv
+                  INNER JOIN file f ON f.id = fv.file_id
+                  INNER JOIN dir d ON d.id = f.dir_id
+              WHERE
+                fv.id = ?
+                AND fv.state = ?
+                AND fv.deleted_at IS NULL
+          "#,
+            id,
+            FileVersionState::Ready,
+        )
+        .fetch_one(connection)
+        .await?;
+
+        Ok(Self {
+            id: item.version,
+            created_at: item.created_at,
+            media_type: item.media_type,
+            hash: item.hash,
+            path: format!("{}/{}/{}", item.dir, item.file, item.version),
+        })
+    }
+
+    #[instrument(skip(connection))]
+    pub async fn find_by_path(
         connection: &mut DatabaseConnection,
         dir_name: &str,
         file_name: &str,
@@ -51,6 +90,7 @@ impl FileVersionMeta {
         .await?;
 
         Ok(Self {
+            id: item.version,
             created_at: item.created_at,
             media_type: item.media_type,
             hash: item.hash,
