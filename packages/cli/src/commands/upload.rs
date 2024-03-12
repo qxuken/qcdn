@@ -1,4 +1,3 @@
-use filesize::PathExt;
 use std::path::PathBuf;
 
 use crate::{cli::Cli, rpc::Rpc};
@@ -21,16 +20,22 @@ pub async fn upload(
     let rpc: Rpc = cli.into();
 
     tracing::debug!("Opening file handle");
-    let file = fs::File::open(&src).await?;
     let hash = qcdn_utils::hash::sha256_file(&src).await?;
 
-    let size: i64 = src.as_path().size_on_disk()?.try_into()?;
+    let file = fs::File::open(&src).await?;
+    let size = ReaderStream::new(file)
+        .fold(0, |size, bytes| async move {
+            size + bytes.map(|b| b.len()).unwrap_or_default()
+        })
+        .await
+        .try_into()?;
     tracing::trace!("size {size}");
 
-    let media_type = tokio::spawn(async {
+    let format_src = src.clone();
+    let media_type = tokio::spawn(async move {
         media_type
             .map(Ok)
-            .unwrap_or_else(|| FileFormat::from_file(src).map(|f| f.media_type().to_owned()))
+            .unwrap_or_else(|| FileFormat::from_file(format_src).map(|f| f.media_type().to_owned()))
     })
     .await??;
     tracing::trace!("media_type {media_type}");
@@ -46,8 +51,10 @@ pub async fn upload(
         version,
     }));
 
+    let file = fs::File::open(&src).await?;
     let file_stream = ReaderStream::new(file).map(|frame| {
         frame
+            .inspect(|bytes| tracing::trace!("Sending {} bytes", bytes.len()))
             .map(|bytes| FilePart {
                 bytes: bytes.into(),
             })
