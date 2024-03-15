@@ -1,10 +1,8 @@
-use std::{num::NonZeroUsize, sync::Arc};
+use std::sync::Arc;
 
 use app_state::AppState;
 use axum::{http::StatusCode, routing::get, Router};
 use clap::Parser;
-use lru::LruCache;
-use tokio::sync::Mutex;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use tracing::instrument;
 
@@ -40,11 +38,9 @@ async fn main() -> color_eyre::Result<()> {
     let db_path = storage.get_path(qcdn_database::DB_NAME, true);
     let db = Arc::new(qcdn_database::Database::try_from_path(&db_path, true).await?);
 
-    let lru = Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(1000).unwrap())));
     let state = Arc::new(AppState::new(
         storage,
         db,
-        lru,
         matches!(cli.mode, cli::Mode::Development),
     ));
 

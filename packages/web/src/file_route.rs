@@ -32,15 +32,9 @@ pub async fn file_route(
         .await
         .map_err(AppError::from)?;
 
-    let lru_key = format!("{}/{}/{}", dir, file, version_or_tag);
-
-    let meta = match state.files_lru.lock().await.get(&lru_key) {
-        Some(id) => FileVersionMeta::find_by_id(&mut connection, id).await,
-        None => FileVersionMeta::find_by_path(&mut connection, &dir, &file, &version_or_tag).await,
-    }
-    .map_err(AppError::from)?;
-
-    state.files_lru.lock().await.put(lru_key, meta.id);
+    let meta = FileVersionMeta::find_by_path(&mut connection, &dir, &file, &version_or_tag)
+        .await
+        .map_err(AppError::from)?;
 
     let mut headers = HeaderMap::with_capacity(4);
 
