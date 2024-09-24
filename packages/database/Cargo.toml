@@ -14,7 +14,7 @@ serde.workspace = true
 chrono.workspace = true
 tonic.workspace = true
 thiserror.workspace = true
-sqlx = { version = "0.7.3", features = [
+sqlx = { version = "0.8.2", features = [
   "runtime-tokio",
   "sqlite",
   "macros",

@@ -23,4 +23,4 @@ tokio-util.workspace = true
 tonic.workspace = true
 chrono.workspace = true
 futures.workspace = true
-async-channel = "2.2.0"
+async-channel = "2.3.1"

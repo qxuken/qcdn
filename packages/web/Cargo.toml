@@ -20,9 +20,9 @@ tokio-util.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 file-format.workspace = true
-axum = "0.7.4"
-axum-macros = "0.4.1"
-tower-http = { version = "0.5.2", features = [
+axum = "0.7.6"
+axum-macros = "0.4.2"
+tower-http = { version = "0.6.1", features = [
   "trace",
   "compression-gzip",
   "compression-deflate",
